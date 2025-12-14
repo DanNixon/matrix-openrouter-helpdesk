@@ -43,8 +43,12 @@ struct Choice {
     message: Message,
 }
 
-async fn call_openrouter(api_key: &str, model: &str, prompt: &str) -> Result<String> {
-    let client = reqwest::Client::new();
+async fn call_openrouter(
+    http_client: &reqwest::Client,
+    api_key: &str,
+    model: &str,
+    prompt: &str,
+) -> Result<String> {
     let request = OpenRouterRequest {
         model: model.to_string(),
         messages: vec![Message {
@@ -53,16 +57,17 @@ async fn call_openrouter(api_key: &str, model: &str, prompt: &str) -> Result<Str
         }],
     };
 
-    let response = client
+    let response = http_client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&request)
         .send()
-        .await?;
+        .await?
+        .error_for_status()?;
 
     let response_data: OpenRouterResponse = response.json().await?;
-    
+
     if let Some(choice) = response_data.choices.first() {
         Ok(choice.message.content.clone())
     } else {
@@ -74,6 +79,7 @@ async fn on_room_message(
     event: OriginalSyncRoomMessageEvent,
     room: Room,
     bot_user_id: OwnedUserId,
+    http_client: reqwest::Client,
     openrouter_api_key: String,
     openrouter_model: String,
 ) {
@@ -118,7 +124,7 @@ async fn on_room_message(
     }
 
     // Call OpenRouter to get a response
-    match call_openrouter(&openrouter_api_key, &openrouter_model, question).await {
+    match call_openrouter(&http_client, &openrouter_api_key, &openrouter_model, question).await {
         Ok(answer) => {
             // Send the response as a reply
             let mut content = RoomMessageEventContent::text_plain(answer);
@@ -151,7 +157,12 @@ async fn on_stripped_state_member(
     client: Client,
     room: Room,
 ) {
-    if room_member.state_key != client.user_id().unwrap() {
+    let Some(user_id) = client.user_id() else {
+        error!("Client user_id is not available");
+        return;
+    };
+
+    if room_member.state_key != user_id {
         return;
     }
 
@@ -197,8 +208,13 @@ async fn main() -> Result<()> {
         .initial_device_display_name("OpenRouter Helpdesk Bot")
         .await?;
 
-    let bot_user_id = client.user_id().unwrap().to_owned();
+    let bot_user_id = client
+        .user_id()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get user_id after login"))?
+        .to_owned();
     info!("Logged in as {}", bot_user_id);
+
+    let http_client = reqwest::Client::new();
 
     // Set up auto-join for room invites
     client.add_event_handler(
@@ -211,10 +227,11 @@ async fn main() -> Result<()> {
     client.add_event_handler(
         move |event: OriginalSyncRoomMessageEvent, room: Room| {
             let bot_user_id = bot_user_id.clone();
+            let http_client = http_client.clone();
             let api_key = openrouter_api_key.clone();
             let model = openrouter_model.clone();
             async move {
-                on_room_message(event, room, bot_user_id, api_key, model).await;
+                on_room_message(event, room, bot_user_id, http_client, api_key, model).await;
             }
         },
     );
