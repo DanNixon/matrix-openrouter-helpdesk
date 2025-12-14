@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{error, info};
 
+const DEFAULT_OPENROUTER_MODEL: &str = "openai/gpt-3.5-turbo";
+
 #[derive(Debug, Serialize)]
 struct OpenRouterRequest {
     model: String,
@@ -105,10 +107,7 @@ async fn on_room_message(
     }
 
     // Extract the question after the bot mention
-    let question = message_body
-        .strip_prefix(&bot_mention)
-        .unwrap_or("")
-        .trim();
+    let question = message_body.strip_prefix(&bot_mention).unwrap().trim();
 
     if question.is_empty() {
         return;
@@ -192,8 +191,8 @@ async fn main() -> Result<()> {
         env::var("MATRIX_PASSWORD").expect("MATRIX_PASSWORD environment variable not set");
     let openrouter_api_key = env::var("OPENROUTER_API_KEY")
         .expect("OPENROUTER_API_KEY environment variable not set");
-    let openrouter_model = env::var("OPENROUTER_MODEL")
-        .unwrap_or_else(|_| "openai/gpt-3.5-turbo".to_string());
+    let openrouter_model =
+        env::var("OPENROUTER_MODEL").unwrap_or_else(|_| DEFAULT_OPENROUTER_MODEL.to_string());
 
     info!("Logging in to {}", homeserver_url);
 
