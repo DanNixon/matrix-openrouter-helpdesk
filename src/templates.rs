@@ -17,17 +17,19 @@ impl TemplateRenderer {
         let data = json!({
             "query": query,
         });
-        self.handlebars
+        Ok(self
+            .handlebars
             .render_template(template, &data)
-            .map_err(|e| HelpdeskError::Template(e.to_string()).into())
+            .map_err(|e| HelpdeskError::Template(e.to_string()))?)
     }
 
     pub fn render_reply(&self, template: &str, response: &str) -> Result<String> {
         let data = json!({
             "response": response,
         });
-        self.handlebars
+        Ok(self
+            .handlebars
             .render_template(template, &data)
-            .map_err(|e| HelpdeskError::Template(e.to_string()).into())
+            .map_err(|e| HelpdeskError::Template(e.to_string()))?)
     }
 }
