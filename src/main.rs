@@ -7,7 +7,7 @@ mod templates;
 
 use crate::config::Config;
 use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
-use crate::session::{get_sync_settings, restore_or_create_session};
+use crate::session::restore_or_create_session;
 use crate::templates::TemplateRenderer;
 use matrix_sdk::{
     Client,
@@ -71,7 +71,9 @@ async fn main() -> miette::Result<()> {
     });
 
     info!("Starting sync...");
-    client.sync(get_sync_settings()).await.into_diagnostic()?;
+    let filter = FilterDefinition::with_lazy_loading();
+    let mut sync_settings = SyncSettings::default().filter(filter.into());
+    client.sync(sync_settings).await.into_diagnostic()?;
 
     Ok(())
 }
