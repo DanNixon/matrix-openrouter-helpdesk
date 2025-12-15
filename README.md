@@ -106,6 +106,41 @@ export REPLY_TEMPLATE='🤖 AI Response: {{ response }}'
 
 The bot's response will be prefixed with "🤖 AI Response: "
 
+### Multi-line Template Example
+
+You can use multi-line templates by using bash heredoc syntax or by escaping newlines:
+
+**Using heredoc:**
+```bash
+export QUESTION_TEMPLATE=$(cat <<'EOF'
+You are a helpful assistant with expertise in technology.
+
+Please answer the following question:
+{{ query }}
+
+Provide a clear and concise response.
+EOF
+)
+```
+
+**Using escaped newlines in bash:**
+```bash
+export QUESTION_TEMPLATE='You are a helpful assistant.\n\nQuestion: {{ query }}\n\nAnswer:'
+```
+
+**Using heredoc for reply templates:**
+```bash
+export REPLY_TEMPLATE=$(cat <<'EOF'
+📝 **Response:**
+
+{{ response }}
+
+---
+*Powered by OpenRouter*
+EOF
+)
+```
+
 ### Available Template Variables
 
 **Question Template:**
