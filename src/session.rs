@@ -22,11 +22,11 @@ struct FullSession {
 
 /// Restore a previous session or create a new one.
 pub async fn restore_or_create_session(config: &Config) -> miette::Result<Client> {
-    let session_file = config.session_path.join("session.json");
-    let db_path = config.session_path.join("db");
+    let session_file = config.matrix_session_path.join("session.json");
+    let db_path = config.matrix_session_path.join("db");
 
     // Create session directory if it doesn't exist
-    fs::create_dir_all(&config.session_path)
+    fs::create_dir_all(&config.matrix_session_path)
         .await
         .into_diagnostic()?;
 
