@@ -2,15 +2,16 @@ use clap::Parser;
 use miette::IntoDiagnostic;
 use std::{fs, net::SocketAddr, path::PathBuf};
 
-const DEFAULT_QUESTION_TEMPLATE: &str = "{{ query }}";
-const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
-
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
     /// Matrix homeserver URL
     #[arg(env = "MATRIX_HOMESERVER_URL", long)]
     pub matrix_homeserver_url: String,
+
+    /// Path to store Matrix session data
+    #[arg(env = "MATRIX_SESSION_PATH", long, default_value = "./matrix_session")]
+    pub matrix_session_path: PathBuf,
 
     /// Matrix username
     #[arg(env = "MATRIX_USERNAME", long)]
@@ -25,41 +26,34 @@ pub struct Config {
     pub openrouter_api_key: String,
 
     /// OpenRouter model to use
-    #[arg(env = "OPENROUTER_MODEL", long, default_value = "openai/gpt-3.5-turbo")]
-    pub openrouter_model: String,
+    #[arg(env = "OPENROUTER_MODEL", long, default_value = "openai/gpt-5-mini")]
+    pub model: String,
 
-    /// Port for Prometheus metrics endpoint
+    /// System prompt for configured model
+    #[arg(
+        env = "SYSTEM_PROMPT",
+        long,
+        default_value = "You are answering single questions from a user. Don't offer any follow up options."
+    )]
+    pub system_prompt: String,
+
+    /// Endpoint for Prometheus metrics
     #[arg(env = "METRICS_ENDPOINT", long, default_value = "127.0.0.1:9090")]
     pub metrics_endpoint: SocketAddr,
-
-    /// Path to store session data
-    #[arg(env = "SESSION_PATH", long, default_value = "./session")]
-    pub session_path: PathBuf,
-
-    /// Path to question template file
-    #[arg(env = "QUESTION_TEMPLATE_FILE", long)]
-    question_template_file: Option<String>,
 
     /// Path to reply template file
     #[arg(env = "REPLY_TEMPLATE_FILE", long)]
     reply_template_file: Option<String>,
 
     #[clap(skip)]
-    pub question_template: String,
-
-    #[clap(skip)]
     pub reply_template: String,
 }
+
+const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
 
 impl Config {
     pub fn from_env() -> miette::Result<Self> {
         let mut config = Self::parse();
-
-        // Load templates from files if specified, otherwise use default templates
-        config.question_template = match &config.question_template_file {
-            Some(path) => fs::read_to_string(path).into_diagnostic()?,
-            None => DEFAULT_QUESTION_TEMPLATE.to_string(),
-        };
 
         config.reply_template = match &config.reply_template_file {
             Some(path) => fs::read_to_string(path).into_diagnostic()?,
