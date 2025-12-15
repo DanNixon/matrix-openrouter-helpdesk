@@ -34,11 +34,21 @@ The bot is configured using environment variables:
 
 ## Building
 
+### From Source
+
 ```bash
 cargo build --release
 ```
 
+### Container Image
+
+```bash
+podman build -f Containerfile -t matrix-openrouter-helpdesk:latest .
+```
+
 ## Running
+
+### From Source
 
 ```bash
 export MATRIX_HOMESERVER_URL="https://matrix.org"
@@ -65,6 +75,34 @@ EOF
 # Load environment variables and run
 set -a; source .env; set +a
 cargo run --release
+```
+
+### Using Container
+
+```bash
+podman run -d \
+  -e MATRIX_HOMESERVER_URL="https://matrix.org" \
+  -e MATRIX_USERNAME="@your-bot:matrix.org" \
+  -e MATRIX_PASSWORD="your-password" \
+  -e OPENROUTER_API_KEY="your-openrouter-api-key" \
+  -e OPENROUTER_MODEL="openai/gpt-3.5-turbo" \
+  -p 9090:9090 \
+  matrix-openrouter-helpdesk:latest
+```
+
+To use custom templates with the container, mount them as volumes:
+
+```bash
+podman run -d \
+  -e MATRIX_HOMESERVER_URL="https://matrix.org" \
+  -e MATRIX_USERNAME="@your-bot:matrix.org" \
+  -e MATRIX_PASSWORD="your-password" \
+  -e OPENROUTER_API_KEY="your-openrouter-api-key" \
+  -e QUESTION_TEMPLATE_FILE=/templates/question.hbs \
+  -e REPLY_TEMPLATE_FILE=/templates/reply.hbs \
+  -v ./templates:/templates:ro \
+  -p 9090:9090 \
+  matrix-openrouter-helpdesk:latest
 ```
 
 ## Usage
