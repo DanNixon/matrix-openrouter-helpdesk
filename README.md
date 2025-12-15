@@ -10,6 +10,8 @@ A Matrix bot written in Rust that responds to messages with AI-generated answers
 - **AI-Powered Responses**: Uses OpenRouter API to generate intelligent responses
 - **Self-Aware**: Ignores its own messages to prevent loops
 - **Prometheus Metrics**: Exposes metrics in Prometheus format for monitoring
+- **Template Support**: Customize question and reply formatting with Handlebars templates
+- **Pretty Error Messages**: Uses miette for beautiful, helpful error reporting
 
 ## Prerequisites
 
@@ -27,6 +29,8 @@ The bot is configured using environment variables:
 - `OPENROUTER_API_KEY`: Your OpenRouter API key
 - `OPENROUTER_MODEL` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
 - `METRICS_PORT` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
+- `QUESTION_TEMPLATE` (optional): Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
+- `REPLY_TEMPLATE` (optional): Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
 
 ## Building
 
@@ -80,6 +84,35 @@ Bot: 👀 (reaction)
 Bot: > What is Rust?
      Rust is a systems programming language focused on safety, speed, and concurrency...
 ```
+
+## Template Customization
+
+You can customize how questions are sent to OpenRouter and how responses are formatted using Handlebars templates:
+
+### Question Template Example
+```bash
+export QUESTION_TEMPLATE='Using only information from wikipedia.org, answer this question: {{ query }}'
+```
+
+If a user asks "what is rust?", the text sent to OpenRouter will be:
+```
+Using only information from wikipedia.org, answer this question: what is rust?
+```
+
+### Reply Template Example
+```bash
+export REPLY_TEMPLATE='🤖 AI Response: {{ response }}'
+```
+
+The bot's response will be prefixed with "🤖 AI Response: "
+
+### Available Template Variables
+
+**Question Template:**
+- `{{ query }}`: The user's question (without the bot mention)
+
+**Reply Template:**
+- `{{ response }}`: The response from OpenRouter
 
 ## Metrics
 
