@@ -26,7 +26,11 @@ use tracing::{error, info};
 const DEFAULT_OPENROUTER_MODEL: &str = "openai/gpt-3.5-turbo";
 
 fn record_request_metric(user_id: &str, room_id: &str, result: &str) {
-    counter!("helpdesk_requests_total", "matrix_user" => user_id.to_string(), "matrix_room" => room_id.to_string(), "result" => result.to_string()).increment(1);
+    counter!("helpdesk_requests_total", 
+        "matrix_user" => user_id.to_string(), 
+        "matrix_room" => room_id.to_string(), 
+        "result" => result.to_string()
+    ).increment(1);
 }
 
 #[derive(Debug, Serialize)]
@@ -108,13 +112,11 @@ async fn on_room_message(
     let message_body = &text_content.body;
 
     // Check if the message mentions the bot (case insensitive)
-    if message_body.len() < bot_mention.len() {
-        return;
-    }
+    let has_mention = message_body
+        .get(..bot_mention.len())
+        .map_or(false, |prefix| prefix.eq_ignore_ascii_case(&bot_mention));
     
-    // Compare the first part of the message with the bot mention (case insensitive)
-    let actual_mention = &message_body[..bot_mention.len()];
-    if !actual_mention.eq_ignore_ascii_case(&bot_mention) {
+    if !has_mention {
         return;
     }
 
