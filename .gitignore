@@ -1,2 +1,5 @@
+.direnv
+.devenv
+.devenv.flake.nix
 /target
 /session
