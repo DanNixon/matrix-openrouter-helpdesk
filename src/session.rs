@@ -101,8 +101,3 @@ async fn login(config: &Config, db_path: &Path, session_file: &Path) -> miette::
 
     Ok(client)
 }
-
-/// Get sync settings, optionally with a sync token for faster syncs.
-pub fn get_sync_settings() -> SyncSettings {
-    SyncSettings::default()
-}
