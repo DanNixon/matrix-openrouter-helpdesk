@@ -3,10 +3,8 @@ use crate::metrics::record_request_metric;
 use crate::openrouter::call_openrouter;
 use crate::templates::TemplateRenderer;
 use matrix_sdk::{
-    Client, RoomState,
     room::Room,
     ruma::{
-        OwnedUserId,
         events::{
             reaction::ReactionEventContent,
             relation::{Annotation, InReplyTo},
@@ -17,7 +15,9 @@ use matrix_sdk::{
                 },
             },
         },
+        OwnedUserId,
     },
+    Client, RoomState,
 };
 use tracing::{error, info};
 
