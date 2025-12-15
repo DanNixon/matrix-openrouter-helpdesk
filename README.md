@@ -29,10 +29,20 @@ The bot is configured using environment variables or command-line arguments (par
 - `OPENROUTER_API_KEY` / `--openrouter-api-key`: Your OpenRouter API key
 - `OPENROUTER_MODEL` / `--openrouter-model` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
 - `METRICS_PORT` / `--metrics-port` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
+- `SESSION_PATH` / `--session-path` (optional): Path to store session data (defaults to `./session`)
 - `QUESTION_TEMPLATE_FILE` / `--question-template-file` (optional): Path to a file containing the Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
 - `REPLY_TEMPLATE_FILE` / `--reply-template-file` (optional): Path to a file containing the Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
 
 Run with `--help` to see all available options.
+
+### Session Persistence
+
+The bot automatically persists its Matrix session to avoid re-logging in on every restart. The session data is stored in the directory specified by `SESSION_PATH` (defaults to `./session`). This includes:
+
+- SQLite database with encryption keys and state
+- Session metadata (homeserver URL, database path, passphrase)
+
+**Important**: The session directory should be kept secure as it contains sensitive authentication data. Make sure to backup this directory if you need to preserve the bot's encryption state.
 
 ## Building
 
