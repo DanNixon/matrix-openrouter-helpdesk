@@ -51,15 +51,26 @@ pub struct Config {
 
 const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
 
-impl Config {
-    pub fn from_env() -> miette::Result<Self> {
-        let mut config = Self::parse();
+pub(crate) struct Context {
+    pub args: Config,
+    pub reply_template: String,
+}
 
-        config.reply_template = match &config.reply_template_file {
+impl Context {
+    pub fn new(args: Config) -> miette::Result<Self> {
+        let reply_template = match &args.reply_template_file {
             Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
         };
 
-        Ok(config)
+        Ok(Self {
+            args,
+            reply_template,
+        })
+    }
+
+    pub(crate) fn from_cli() -> miette::Result<Self> {
+        let args = Config::parse();
+        Self::new(args)
     }
 }
