@@ -1,5 +1,7 @@
 use crate::error::{HelpdeskError, Result};
+use miette::IntoDiagnostic;
 use std::env;
+use std::fs;
 
 const DEFAULT_OPENROUTER_MODEL: &str = "openai/gpt-3.5-turbo";
 const DEFAULT_METRICS_PORT: u16 = 9090;
@@ -40,11 +42,20 @@ impl Config {
             .parse::<u16>()
             .map_err(|_| HelpdeskError::Config("METRICS_PORT must be a valid port number".to_string()))?;
         
-        let question_template = env::var("QUESTION_TEMPLATE")
-            .unwrap_or_else(|_| DEFAULT_QUESTION_TEMPLATE.to_string());
+        // Load templates from files if specified, otherwise use default templates
+        let question_template = match env::var("QUESTION_TEMPLATE_FILE") {
+            Ok(path) => fs::read_to_string(&path)
+                .into_diagnostic()
+                .map_err(|_| HelpdeskError::Config(format!("Failed to read question template file: {}", path)))?,
+            Err(_) => DEFAULT_QUESTION_TEMPLATE.to_string(),
+        };
         
-        let reply_template = env::var("REPLY_TEMPLATE")
-            .unwrap_or_else(|_| DEFAULT_REPLY_TEMPLATE.to_string());
+        let reply_template = match env::var("REPLY_TEMPLATE_FILE") {
+            Ok(path) => fs::read_to_string(&path)
+                .into_diagnostic()
+                .map_err(|_| HelpdeskError::Config(format!("Failed to read reply template file: {}", path)))?,
+            Err(_) => DEFAULT_REPLY_TEMPLATE.to_string(),
+        };
         
         Ok(Config {
             matrix_homeserver_url,

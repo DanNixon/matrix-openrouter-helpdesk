@@ -29,8 +29,8 @@ The bot is configured using environment variables:
 - `OPENROUTER_API_KEY`: Your OpenRouter API key
 - `OPENROUTER_MODEL` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
 - `METRICS_PORT` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
-- `QUESTION_TEMPLATE` (optional): Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
-- `REPLY_TEMPLATE` (optional): Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
+- `QUESTION_TEMPLATE_FILE` (optional): Path to a file containing the Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
+- `REPLY_TEMPLATE_FILE` (optional): Path to a file containing the Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
 
 ## Building
 
@@ -87,58 +87,56 @@ Bot: > What is Rust?
 
 ## Template Customization
 
-You can customize how questions are sent to OpenRouter and how responses are formatted using Handlebars templates:
+You can customize how questions are sent to OpenRouter and how responses are formatted using Handlebars templates loaded from files.
 
-### Question Template Example
-```bash
-export QUESTION_TEMPLATE='Using only information from wikipedia.org, answer this question: {{ query }}'
-```
+### Using Template Files
 
-If a user asks "what is rust?", the text sent to OpenRouter will be:
-```
-Using only information from wikipedia.org, answer this question: what is rust?
-```
+Templates are loaded from files specified by environment variables. This makes multi-line templates much easier to manage:
 
-### Reply Template Example
-```bash
-export REPLY_TEMPLATE='🤖 AI Response: {{ response }}'
-```
+**Question Template Example:**
 
-The bot's response will be prefixed with "🤖 AI Response: "
-
-### Multi-line Template Example
-
-You can use multi-line templates by using bash heredoc syntax or by escaping newlines:
-
-**Using heredoc:**
-```bash
-export QUESTION_TEMPLATE=$(cat <<'EOF'
+Create a file `question_template.hbs`:
+```handlebars
 You are a helpful assistant with expertise in technology.
 
 Please answer the following question:
 {{ query }}
 
 Provide a clear and concise response.
-EOF
-)
 ```
 
-**Using escaped newlines in bash:**
+Then set the environment variable:
 ```bash
-export QUESTION_TEMPLATE='You are a helpful assistant.\n\nQuestion: {{ query }}\n\nAnswer:'
+export QUESTION_TEMPLATE_FILE=/path/to/question_template.hbs
 ```
 
-**Using heredoc for reply templates:**
-```bash
-export REPLY_TEMPLATE=$(cat <<'EOF'
+**Reply Template Example:**
+
+Create a file `reply_template.hbs`:
+```handlebars
 📝 **Response:**
 
 {{ response }}
 
 ---
 *Powered by OpenRouter*
-EOF
-)
+```
+
+Then set the environment variable:
+```bash
+export REPLY_TEMPLATE_FILE=/path/to/reply_template.hbs
+```
+
+### Simple Template Example
+
+For a simple customization, create `question_template.hbs`:
+```handlebars
+Using only information from wikipedia.org, answer this question: {{ query }}
+```
+
+If a user asks "what is rust?", the text sent to OpenRouter will be:
+```
+Using only information from wikipedia.org, answer this question: what is rust?
 ```
 
 ### Available Template Variables
