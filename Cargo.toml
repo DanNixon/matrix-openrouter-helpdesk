@@ -17,3 +17,4 @@ metrics = "0.23"
 metrics-exporter-prometheus = "0.15"
 handlebars = "6"
 clap = { version = "4", features = ["derive", "env"] }
+rand = "0.8"

@@ -3,14 +3,15 @@ mod error;
 mod matrix_handlers;
 mod metrics;
 mod openrouter;
+mod session;
 mod templates;
 
 use crate::config::Config;
 use crate::error::{HelpdeskError, Result};
 use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
+use crate::session::{get_sync_settings, restore_or_create_session};
 use crate::templates::TemplateRenderer;
 use matrix_sdk::{
-    config::SyncSettings,
     room::Room,
     ruma::events::room::{member::StrippedRoomMemberEvent, message::OriginalSyncRoomMessageEvent},
     Client,
@@ -34,22 +35,9 @@ async fn main() -> Result<()> {
         .into_diagnostic()?;
 
     info!("Metrics server listening on port {}", config.metrics_port);
-    info!("Logging in to {}", config.matrix_homeserver_url);
 
-    // Create Matrix client
-    let client = Client::builder()
-        .homeserver_url(&config.matrix_homeserver_url)
-        .build()
-        .await
-        .into_diagnostic()?;
-
-    // Login
-    client
-        .matrix_auth()
-        .login_username(&config.matrix_username, &config.matrix_password)
-        .initial_device_display_name("OpenRouter Helpdesk Bot")
-        .await
-        .into_diagnostic()?;
+    // Restore or create Matrix session
+    let client = restore_or_create_session(&config).await?;
 
     let bot_user_id = client
         .user_id()
@@ -81,7 +69,7 @@ async fn main() -> Result<()> {
     );
 
     info!("Starting sync...");
-    client.sync(SyncSettings::default()).await.into_diagnostic()?;
+    client.sync(get_sync_settings()).await.into_diagnostic()?;
 
     Ok(())
 }

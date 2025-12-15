@@ -2,6 +2,7 @@ use crate::error::{HelpdeskError, Result};
 use clap::Parser;
 use miette::IntoDiagnostic;
 use std::fs;
+use std::path::PathBuf;
 
 const DEFAULT_QUESTION_TEMPLATE: &str = "{{ query }}";
 const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
@@ -32,6 +33,10 @@ pub struct Config {
     /// Port for Prometheus metrics endpoint
     #[arg(env = "METRICS_PORT", long, default_value = "9090")]
     pub metrics_port: u16,
+
+    /// Path to store session data
+    #[arg(env = "SESSION_PATH", long, default_value = "./session")]
+    pub session_path: PathBuf,
 
     /// Path to question template file
     #[arg(env = "QUESTION_TEMPLATE_FILE", long)]
