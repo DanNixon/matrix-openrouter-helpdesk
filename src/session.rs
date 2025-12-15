@@ -4,7 +4,7 @@ use matrix_sdk::{
     config::SyncSettings, Client,
 };
 use miette::IntoDiagnostic;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -65,7 +65,7 @@ async fn restore_session(session_file: &Path) -> Result<Client> {
 
 /// Login with a new device and persist the session.
 async fn login(config: &Config, db_path: &Path, session_file: &Path) -> Result<Client> {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // Generate a random passphrase for the database.
     let passphrase: String = (&mut rng)
