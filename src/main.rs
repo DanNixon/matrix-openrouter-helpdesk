@@ -25,6 +25,10 @@ use tracing::{error, info};
 
 const DEFAULT_OPENROUTER_MODEL: &str = "openai/gpt-3.5-turbo";
 
+fn record_request_metric(user_id: &str, room_id: &str, result: &str) {
+    counter!("helpdesk_requests_total", "matrix_user" => user_id.to_string(), "matrix_room" => room_id.to_string(), "result" => result.to_string()).increment(1);
+}
+
 #[derive(Debug, Serialize)]
 struct OpenRouterRequest {
     model: String,
@@ -104,22 +108,18 @@ async fn on_room_message(
     let message_body = &text_content.body;
 
     // Check if the message mentions the bot (case insensitive)
-    let message_lower = message_body.to_lowercase();
-    let bot_mention_lower = bot_mention.to_lowercase();
+    if message_body.len() < bot_mention.len() {
+        return;
+    }
     
-    if !message_lower.starts_with(&bot_mention_lower) {
+    // Compare the first part of the message with the bot mention (case insensitive)
+    let actual_mention = &message_body[..bot_mention.len()];
+    if !actual_mention.eq_ignore_ascii_case(&bot_mention) {
         return;
     }
 
     // Extract the question after the bot mention
-    // Since we've verified the mention exists (case-insensitive), we can safely skip those characters
-    // The length is the same regardless of case for ASCII characters
-    let mention_len = bot_mention.len();
-    let question = if message_body.len() >= mention_len {
-        message_body[mention_len..].trim()
-    } else {
-        ""
-    };
+    let question = message_body[bot_mention.len()..].trim();
 
     if question.is_empty() {
         return;
@@ -149,11 +149,9 @@ async fn on_room_message(
 
             if let Err(e) = room.send(content).await {
                 error!("Failed to send message: {}", e);
-                // Record failure metric
-                counter!("helpdesk_requests_total", "matrix_user" => user_id.clone(), "matrix_room" => room_id.clone(), "result" => "failure").increment(1);
+                record_request_metric(&user_id, &room_id, "failure");
             } else {
-                // Record success metric
-                counter!("helpdesk_requests_total", "matrix_user" => user_id, "matrix_room" => room_id, "result" => "success").increment(1);
+                record_request_metric(&user_id, &room_id, "success");
             }
         }
         Err(e) => {
@@ -169,8 +167,7 @@ async fn on_room_message(
                 error!("Failed to send error message: {}", e);
             }
             
-            // Record failure metric
-            counter!("helpdesk_requests_total", "matrix_user" => user_id, "matrix_room" => room_id, "result" => "failure").increment(1);
+            record_request_metric(&user_id, &room_id, "failure");
         }
     }
 }
