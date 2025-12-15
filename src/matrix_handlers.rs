@@ -74,23 +74,12 @@ pub async fn on_room_message(
     let room_id = room.room_id().to_string();
     let user_id = event.sender.to_string();
 
-    // Render the question template
-    let rendered_question =
-        match template_renderer.render_question(&config.question_template, question) {
-            Ok(q) => q,
-            Err(e) => {
-                error!("Failed to render question template: {}", e);
-                record_request_metric(&user_id, &room_id, "failure");
-                return;
-            }
-        };
-
     // Call OpenRouter to get a response
     match call_openrouter(
         &http_client,
         &config.openrouter_api_key,
         &config.model,
-        &rendered_question,
+        &question,
     )
     .await
     {
