@@ -21,16 +21,18 @@ A Matrix bot written in Rust that responds to messages with AI-generated answers
 
 ## Configuration
 
-The bot is configured using environment variables:
+The bot is configured using environment variables or command-line arguments (parsed with [clap](https://github.com/clap-rs/clap)):
 
-- `MATRIX_HOMESERVER_URL`: The Matrix homeserver URL (e.g., `https://matrix.org`)
-- `MATRIX_USERNAME`: The bot's Matrix username (e.g., `@helpdesk:matrix.org`)
-- `MATRIX_PASSWORD`: The bot's Matrix password
-- `OPENROUTER_API_KEY`: Your OpenRouter API key
-- `OPENROUTER_MODEL` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
-- `METRICS_PORT` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
-- `QUESTION_TEMPLATE_FILE` (optional): Path to a file containing the Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
-- `REPLY_TEMPLATE_FILE` (optional): Path to a file containing the Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
+- `MATRIX_HOMESERVER_URL` / `--matrix-homeserver-url`: The Matrix homeserver URL (e.g., `https://matrix.org`)
+- `MATRIX_USERNAME` / `--matrix-username`: The bot's Matrix username (e.g., `@helpdesk:matrix.org`)
+- `MATRIX_PASSWORD` / `--matrix-password`: The bot's Matrix password
+- `OPENROUTER_API_KEY` / `--openrouter-api-key`: Your OpenRouter API key
+- `OPENROUTER_MODEL` / `--openrouter-model` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
+- `METRICS_PORT` / `--metrics-port` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
+- `QUESTION_TEMPLATE_FILE` / `--question-template-file` (optional): Path to a file containing the Handlebars template for formatting questions sent to OpenRouter (defaults to `{{ query }}`)
+- `REPLY_TEMPLATE_FILE` / `--reply-template-file` (optional): Path to a file containing the Handlebars template for formatting replies sent to Matrix (defaults to `{{ response }}`)
+
+Run with `--help` to see all available options.
 
 ## Building
 
