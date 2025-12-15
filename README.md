@@ -5,10 +5,11 @@ A Matrix bot written in Rust that responds to messages with AI-generated answers
 ## Features
 
 - **Automatic Room Invites**: The bot automatically accepts room invitations
-- **Message Processing**: Responds to messages in the format `@bot_username question`
+- **Message Processing**: Responds to messages in the format `@bot_username question` (case insensitive)
 - **Visual Feedback**: Adds a "👀" (eyes) emoji reaction to messages it's processing
 - **AI-Powered Responses**: Uses OpenRouter API to generate intelligent responses
 - **Self-Aware**: Ignores its own messages to prevent loops
+- **Prometheus Metrics**: Exposes metrics in Prometheus format for monitoring
 
 ## Prerequisites
 
@@ -25,6 +26,7 @@ The bot is configured using environment variables:
 - `MATRIX_PASSWORD`: The bot's Matrix password
 - `OPENROUTER_API_KEY`: Your OpenRouter API key
 - `OPENROUTER_MODEL` (optional): The OpenRouter model to use (defaults to `openai/gpt-3.5-turbo`)
+- `METRICS_PORT` (optional): Port for Prometheus metrics endpoint (defaults to `9090`)
 
 ## Building
 
@@ -77,6 +79,27 @@ You: @helpdesk:matrix.org What is Rust?
 Bot: 👀 (reaction)
 Bot: > What is Rust?
      Rust is a systems programming language focused on safety, speed, and concurrency...
+```
+
+## Metrics
+
+The bot exposes Prometheus metrics on the configured port (default: 9090). The metrics endpoint is available at `http://localhost:9090/metrics`.
+
+### Available Metrics
+
+- `helpdesk_requests_total`: Counter tracking total number of requests processed
+  - Labels:
+    - `matrix_user`: The Matrix user ID who sent the request
+    - `matrix_room`: The Matrix room ID where the request was made
+    - `result`: Either `success` or `failure`
+
+Example Prometheus query:
+```promql
+# Total successful requests
+helpdesk_requests_total{result="success"}
+
+# Request rate per room
+rate(helpdesk_requests_total[5m])
 ```
 
 ## License
