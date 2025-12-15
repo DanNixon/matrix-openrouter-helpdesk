@@ -17,6 +17,8 @@ use matrix_sdk::{
     },
     Client, RoomState,
 };
+use metrics::counter;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{error, info};
@@ -125,6 +127,10 @@ async fn on_room_message(
         error!("Failed to add reaction: {}", e);
     }
 
+    // Get room and user info for metrics
+    let room_id = room.room_id().to_string();
+    let user_id = event.sender.to_string();
+
     // Call OpenRouter to get a response
     match call_openrouter(&http_client, &openrouter_api_key, &openrouter_model, question).await {
         Ok(answer) => {
@@ -136,6 +142,11 @@ async fn on_room_message(
 
             if let Err(e) = room.send(content).await {
                 error!("Failed to send message: {}", e);
+                // Record failure metric
+                counter!("helpdesk_requests_total", "matrix_user" => user_id.clone(), "matrix_room" => room_id.clone(), "result" => "failure").increment(1);
+            } else {
+                // Record success metric
+                counter!("helpdesk_requests_total", "matrix_user" => user_id, "matrix_room" => room_id, "result" => "success").increment(1);
             }
         }
         Err(e) => {
@@ -150,6 +161,9 @@ async fn on_room_message(
             if let Err(e) = room.send(error_content).await {
                 error!("Failed to send error message: {}", e);
             }
+            
+            // Record failure metric
+            counter!("helpdesk_requests_total", "matrix_user" => user_id, "matrix_room" => room_id, "result" => "failure").increment(1);
         }
     }
 }
@@ -196,7 +210,18 @@ async fn main() -> Result<()> {
         .expect("OPENROUTER_API_KEY environment variable not set");
     let openrouter_model =
         env::var("OPENROUTER_MODEL").unwrap_or_else(|_| DEFAULT_OPENROUTER_MODEL.to_string());
+    let metrics_port = env::var("METRICS_PORT")
+        .unwrap_or_else(|_| "9090".to_string())
+        .parse::<u16>()
+        .expect("METRICS_PORT must be a valid port number");
 
+    // Set up Prometheus metrics exporter
+    let _prometheus_handle = PrometheusBuilder::new()
+        .with_http_listener(([0, 0, 0, 0], metrics_port))
+        .install_recorder()
+        .expect("Failed to install Prometheus recorder");
+
+    info!("Metrics server listening on port {}", metrics_port);
     info!("Logging in to {}", homeserver_url);
 
     let client = Client::builder()
