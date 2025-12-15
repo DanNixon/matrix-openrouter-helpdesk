@@ -1,5 +1,4 @@
 mod config;
-mod error;
 mod matrix_handlers;
 mod metrics;
 mod openrouter;
@@ -7,21 +6,20 @@ mod session;
 mod templates;
 
 use crate::config::Config;
-use crate::error::{HelpdeskError, Result};
 use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
 use crate::session::{get_sync_settings, restore_or_create_session};
 use crate::templates::TemplateRenderer;
 use matrix_sdk::{
+    Client,
     room::Room,
     ruma::events::room::{member::StrippedRoomMemberEvent, message::OriginalSyncRoomMessageEvent},
-    Client,
 };
 use metrics_exporter_prometheus::PrometheusBuilder;
 use miette::IntoDiagnostic;
 use tracing::info;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> miette::Result<()> {
     miette::set_panic_hook();
     tracing_subscriber::fmt::init();
 
@@ -30,7 +28,7 @@ async fn main() -> Result<()> {
 
     // Set up Prometheus metrics exporter
     let _prometheus_handle = PrometheusBuilder::new()
-        .with_http_listener(([0, 0, 0, 0], config.metrics_port))
+        .with_http_listener(config.metrics_endpoint)
         .install_recorder()
         .into_diagnostic()?;
 
@@ -41,7 +39,7 @@ async fn main() -> Result<()> {
 
     let bot_user_id = client
         .user_id()
-        .ok_or(HelpdeskError::NoUserId)?
+        .ok_or(miette::miette!("No user ID"))?
         .to_owned();
     info!("Logged in as {}", bot_user_id);
 
@@ -55,18 +53,23 @@ async fn main() -> Result<()> {
     );
 
     // Set up message handler
-    client.add_event_handler(
-        move |event: OriginalSyncRoomMessageEvent, room: Room| {
-            let bot_user_id = bot_user_id.clone();
-            let http_client = http_client.clone();
-            let config = config.clone();
-            let template_renderer = TemplateRenderer::new();
-            async move {
-                on_room_message(event, room, bot_user_id, http_client, config, template_renderer)
-                    .await;
-            }
-        },
-    );
+    client.add_event_handler(move |event: OriginalSyncRoomMessageEvent, room: Room| {
+        let bot_user_id = bot_user_id.clone();
+        let http_client = http_client.clone();
+        let config = config.clone();
+        let template_renderer = TemplateRenderer::new();
+        async move {
+            on_room_message(
+                event,
+                room,
+                bot_user_id,
+                http_client,
+                config,
+                template_renderer,
+            )
+            .await;
+        }
+    });
 
     info!("Starting sync...");
     client.sync(get_sync_settings()).await.into_diagnostic()?;

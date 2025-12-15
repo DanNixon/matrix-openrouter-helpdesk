@@ -1,5 +1,5 @@
-use crate::error::{HelpdeskError, Result};
 use handlebars::Handlebars;
+use miette::IntoDiagnostic;
 use serde_json::json;
 
 pub struct TemplateRenderer {
@@ -13,23 +13,23 @@ impl TemplateRenderer {
         }
     }
 
-    pub fn render_question(&self, template: &str, query: &str) -> Result<String> {
+    pub fn render_question(&self, template: &str, query: &str) -> miette::Result<String> {
         let data = json!({
             "query": query,
         });
         Ok(self
             .handlebars
             .render_template(template, &data)
-            .map_err(|e| HelpdeskError::Template(e.to_string()))?)
+            .into_diagnostic()?)
     }
 
-    pub fn render_reply(&self, template: &str, response: &str) -> Result<String> {
+    pub fn render_reply(&self, template: &str, response: &str) -> miette::Result<String> {
         let data = json!({
             "response": response,
         });
         Ok(self
             .handlebars
             .render_template(template, &data)
-            .map_err(|e| HelpdeskError::Template(e.to_string()))?)
+            .into_diagnostic()?)
     }
 }

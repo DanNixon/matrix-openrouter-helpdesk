@@ -1,8 +1,7 @@
 use crate::error::{HelpdeskError, Result};
 use clap::Parser;
 use miette::IntoDiagnostic;
-use std::fs;
-use std::path::PathBuf;
+use std::{fs, net::SocketAddr, path::PathBuf};
 
 const DEFAULT_QUESTION_TEMPLATE: &str = "{{ query }}";
 const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
@@ -31,8 +30,8 @@ pub struct Config {
     pub openrouter_model: String,
 
     /// Port for Prometheus metrics endpoint
-    #[arg(env = "METRICS_PORT", long, default_value = "9090")]
-    pub metrics_port: u16,
+    #[arg(env = "METRICS_ENDPOINT", long, default_value = "127.0.0.1:9090")]
+    pub metrics_endpoint: SocketAddr,
 
     /// Path to store session data
     #[arg(env = "SESSION_PATH", long, default_value = "./session")]
@@ -59,20 +58,16 @@ impl Config {
 
         // Load templates from files if specified, otherwise use default templates
         config.question_template = match &config.question_template_file {
-            Some(path) => fs::read_to_string(path)
-                .into_diagnostic()
-                .map_err(|_| {
-                    HelpdeskError::Config(format!("Failed to read question template file: {}", path))
-                })?,
+            Some(path) => fs::read_to_string(path).into_diagnostic().map_err(|_| {
+                HelpdeskError::Config(format!("Failed to read question template file: {}", path))
+            })?,
             None => DEFAULT_QUESTION_TEMPLATE.to_string(),
         };
 
         config.reply_template = match &config.reply_template_file {
-            Some(path) => fs::read_to_string(path)
-                .into_diagnostic()
-                .map_err(|_| {
-                    HelpdeskError::Config(format!("Failed to read reply template file: {}", path))
-                })?,
+            Some(path) => fs::read_to_string(path).into_diagnostic().map_err(|_| {
+                HelpdeskError::Config(format!("Failed to read reply template file: {}", path))
+            })?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
         };
 

@@ -1,10 +1,7 @@
 use crate::config::Config;
-use crate::error::Result;
-use matrix_sdk::{
-    config::SyncSettings, Client,
-};
+use matrix_sdk::{Client, config::SyncSettings};
 use miette::IntoDiagnostic;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distr::Alphanumeric};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -24,7 +21,7 @@ struct FullSession {
 }
 
 /// Restore a previous session or create a new one.
-pub async fn restore_or_create_session(config: &Config) -> Result<Client> {
+pub async fn restore_or_create_session(config: &Config) -> miette::Result<Client> {
     let session_file = config.session_path.join("session.json");
     let db_path = config.session_path.join("db");
 
@@ -43,10 +40,8 @@ pub async fn restore_or_create_session(config: &Config) -> Result<Client> {
 }
 
 /// Restore a previous session.
-async fn restore_session(session_file: &Path) -> Result<Client> {
-    let serialized_session = fs::read_to_string(session_file)
-        .await
-        .into_diagnostic()?;
+async fn restore_session(session_file: &Path) -> miette::Result<Client> {
+    let serialized_session = fs::read_to_string(session_file).await.into_diagnostic()?;
     let session_data: FullSession = serde_json::from_str(&serialized_session).into_diagnostic()?;
 
     // Build the client with the previous settings from the session.
@@ -64,7 +59,7 @@ async fn restore_session(session_file: &Path) -> Result<Client> {
 }
 
 /// Login with a new device and persist the session.
-async fn login(config: &Config, db_path: &Path, session_file: &Path) -> Result<Client> {
+async fn login(config: &Config, db_path: &Path, session_file: &Path) -> miette::Result<Client> {
     let mut rng = rand::rng();
 
     // Generate a random passphrase for the database.
