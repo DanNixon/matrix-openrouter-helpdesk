@@ -31,8 +31,7 @@ async fn main() -> miette::Result<()> {
         .with_http_listener(config.metrics_endpoint)
         .install_recorder()
         .into_diagnostic()?;
-
-    info!("Metrics server listening on port {}", config.metrics_port);
+    info!("Metrics server listening on {}", config.metrics_endpoint);
 
     // Restore or create Matrix session
     let client = restore_or_create_session(&config).await?;
