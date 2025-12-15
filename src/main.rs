@@ -5,7 +5,6 @@ mod openrouter;
 mod session;
 mod templates;
 
-use crate::config::Config;
 use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
 use crate::session::restore_or_create_session;
 use crate::templates::TemplateRenderer;
@@ -26,17 +25,17 @@ async fn main() -> miette::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Load configuration
-    let config = Config::from_env()?;
+    let ctx = config::Context::from_cli()?;
 
     // Set up Prometheus metrics exporter
     let _prometheus_handle = PrometheusBuilder::new()
-        .with_http_listener(config.metrics_endpoint)
+        .with_http_listener(ctx.args.metrics_endpoint)
         .install_recorder()
         .into_diagnostic()?;
-    info!("Metrics server listening on {}", config.metrics_endpoint);
+    info!("Metrics server listening on {}", ctx.args.metrics_endpoint);
 
     // Restore or create Matrix session
-    let client = restore_or_create_session(&config).await?;
+    let client = restore_or_create_session(&ctx.args).await?;
 
     let bot_user_id = client
         .user_id()
