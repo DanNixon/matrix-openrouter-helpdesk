@@ -17,19 +17,17 @@ impl TemplateRenderer {
         let data = json!({
             "query": query,
         });
-        Ok(self
-            .handlebars
+        self.handlebars
             .render_template(template, &data)
-            .into_diagnostic()?)
+            .into_diagnostic()
     }
 
     pub fn render_reply(&self, template: &str, response: &str) -> miette::Result<String> {
         let data = json!({
             "response": response,
         });
-        Ok(self
-            .handlebars
+        self.handlebars
             .render_template(template, &data)
-            .into_diagnostic()?)
+            .into_diagnostic()
     }
 }

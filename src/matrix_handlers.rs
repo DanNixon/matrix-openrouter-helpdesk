@@ -48,7 +48,7 @@ pub async fn on_room_message(
     // Check if the message mentions the bot (case insensitive)
     let has_mention = message_body
         .get(..bot_mention.len())
-        .map_or(false, |prefix| prefix.eq_ignore_ascii_case(&bot_mention));
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(&bot_mention));
 
     if !has_mention {
         return;
