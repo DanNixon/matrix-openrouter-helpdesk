@@ -101,13 +101,16 @@ async fn on_room_message(
     let bot_mention = format!("@{}", bot_user_id.localpart());
     let message_body = &text_content.body;
 
-    // Check if the message mentions the bot
-    if !message_body.starts_with(&bot_mention) {
+    // Check if the message mentions the bot (case insensitive)
+    let message_lower = message_body.to_lowercase();
+    let bot_mention_lower = bot_mention.to_lowercase();
+    
+    if !message_lower.starts_with(&bot_mention_lower) {
         return;
     }
 
     // Extract the question after the bot mention
-    let question = message_body.strip_prefix(&bot_mention).unwrap().trim();
+    let question = message_body[bot_mention.len()..].trim();
 
     if question.is_empty() {
         return;
