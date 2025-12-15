@@ -1,5 +1,5 @@
 use crate::config::Config;
-use matrix_sdk::{config::SyncSettings, Client};
+use matrix_sdk::Client;
 use miette::IntoDiagnostic;
 use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
