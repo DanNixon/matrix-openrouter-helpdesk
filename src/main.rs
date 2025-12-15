@@ -112,7 +112,14 @@ async fn on_room_message(
     }
 
     // Extract the question after the bot mention
-    let question = message_body[bot_mention.len()..].trim();
+    // Since we've verified the mention exists (case-insensitive), we can safely skip those characters
+    // The length is the same regardless of case for ASCII characters
+    let mention_len = bot_mention.len();
+    let question = if message_body.len() >= mention_len {
+        message_body[mention_len..].trim()
+    } else {
+        ""
+    };
 
     if question.is_empty() {
         return;
