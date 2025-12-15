@@ -1,4 +1,3 @@
-use crate::error::{HelpdeskError, Result};
 use miette::IntoDiagnostic;
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +28,7 @@ pub async fn call_openrouter(
     api_key: &str,
     model: &str,
     prompt: &str,
-) -> Result<String> {
+) -> miette::Result<String> {
     let request = OpenRouterRequest {
         model: model.to_string(),
         messages: vec![Message {
@@ -54,6 +53,6 @@ pub async fn call_openrouter(
     if let Some(choice) = response_data.choices.first() {
         Ok(choice.message.content.clone())
     } else {
-        Err(HelpdeskError::NoResponse.into())
+        Err(miette::miette!("No response"))
     }
 }

@@ -3,8 +3,10 @@ use crate::metrics::record_request_metric;
 use crate::openrouter::call_openrouter;
 use crate::templates::TemplateRenderer;
 use matrix_sdk::{
+    Client, RoomState,
     room::Room,
     ruma::{
+        OwnedUserId,
         events::{
             reaction::ReactionEventContent,
             relation::{Annotation, InReplyTo},
@@ -15,9 +17,7 @@ use matrix_sdk::{
                 },
             },
         },
-        OwnedUserId,
     },
-    Client, RoomState,
 };
 use tracing::{error, info};
 
@@ -55,10 +55,7 @@ pub async fn on_room_message(
     }
 
     // Extract the question after the bot mention (safe because we verified the prefix exists)
-    let question = message_body
-        .get(bot_mention.len()..)
-        .unwrap_or("")
-        .trim();
+    let question = message_body.get(bot_mention.len()..).unwrap_or("").trim();
 
     if question.is_empty() {
         return;
@@ -78,14 +75,15 @@ pub async fn on_room_message(
     let user_id = event.sender.to_string();
 
     // Render the question template
-    let rendered_question = match template_renderer.render_question(&config.question_template, question) {
-        Ok(q) => q,
-        Err(e) => {
-            error!("Failed to render question template: {}", e);
-            record_request_metric(&user_id, &room_id, "failure");
-            return;
-        }
-    };
+    let rendered_question =
+        match template_renderer.render_question(&config.question_template, question) {
+            Ok(q) => q,
+            Err(e) => {
+                error!("Failed to render question template: {}", e);
+                record_request_metric(&user_id, &room_id, "failure");
+                return;
+            }
+        };
 
     // Call OpenRouter to get a response
     match call_openrouter(
@@ -98,14 +96,15 @@ pub async fn on_room_message(
     {
         Ok(answer) => {
             // Render the reply template
-            let rendered_reply = match template_renderer.render_reply(&config.reply_template, &answer) {
-                Ok(r) => r,
-                Err(e) => {
-                    error!("Failed to render reply template: {}", e);
-                    record_request_metric(&user_id, &room_id, "failure");
-                    return;
-                }
-            };
+            let rendered_reply =
+                match template_renderer.render_reply(&config.reply_template, &answer) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("Failed to render reply template: {}", e);
+                        record_request_metric(&user_id, &room_id, "failure");
+                        return;
+                    }
+                };
 
             // Send the response as a reply
             let mut content = RoomMessageEventContent::text_plain(rendered_reply);
