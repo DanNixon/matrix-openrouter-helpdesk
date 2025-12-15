@@ -9,10 +9,12 @@ use crate::config::Config;
 use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
 use crate::session::restore_or_create_session;
 use crate::templates::TemplateRenderer;
+use matrix_sdk::config::SyncSettings;
+use matrix_sdk::ruma::api::client::filter::FilterDefinition;
 use matrix_sdk::{
-    Client,
     room::Room,
     ruma::events::room::{member::StrippedRoomMemberEvent, message::OriginalSyncRoomMessageEvent},
+    Client,
 };
 use metrics_exporter_prometheus::PrometheusBuilder;
 use miette::IntoDiagnostic;
@@ -72,7 +74,7 @@ async fn main() -> miette::Result<()> {
 
     info!("Starting sync...");
     let filter = FilterDefinition::with_lazy_loading();
-    let mut sync_settings = SyncSettings::default().filter(filter.into());
+    let sync_settings = SyncSettings::default().filter(filter.into());
     client.sync(sync_settings).await.into_diagnostic()?;
 
     Ok(())

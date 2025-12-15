@@ -1,7 +1,7 @@
 use crate::config::Config;
-use matrix_sdk::{Client, config::SyncSettings};
+use matrix_sdk::{config::SyncSettings, Client};
 use miette::IntoDiagnostic;
-use rand::{Rng, distr::Alphanumeric};
+use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
