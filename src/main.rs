@@ -120,8 +120,11 @@ async fn on_room_message(
         return;
     }
 
-    // Extract the question after the bot mention
-    let question = message_body[bot_mention.len()..].trim();
+    // Extract the question after the bot mention (safe because we verified the prefix exists)
+    let question = message_body
+        .get(bot_mention.len()..)
+        .unwrap_or("")
+        .trim();
 
     if question.is_empty() {
         return;
