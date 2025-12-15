@@ -89,7 +89,7 @@ pub async fn on_room_message(
     match call_openrouter(
         &http_client,
         &config.openrouter_api_key,
-        &config.openrouter_model,
+        &config.model,
         &rendered_question,
     )
     .await
