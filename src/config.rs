@@ -1,4 +1,3 @@
-use crate::error::{HelpdeskError, Result};
 use clap::Parser;
 use miette::IntoDiagnostic;
 use std::{fs, net::SocketAddr, path::PathBuf};
@@ -53,21 +52,17 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Result<Self> {
+    pub fn from_env() -> miette::Result<Self> {
         let mut config = Self::parse();
 
         // Load templates from files if specified, otherwise use default templates
         config.question_template = match &config.question_template_file {
-            Some(path) => fs::read_to_string(path).into_diagnostic().map_err(|_| {
-                HelpdeskError::Config(format!("Failed to read question template file: {}", path))
-            })?,
+            Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_QUESTION_TEMPLATE.to_string(),
         };
 
         config.reply_template = match &config.reply_template_file {
-            Some(path) => fs::read_to_string(path).into_diagnostic().map_err(|_| {
-                HelpdeskError::Config(format!("Failed to read reply template file: {}", path))
-            })?,
+            Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
         };
 
