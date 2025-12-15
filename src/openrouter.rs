@@ -56,3 +56,23 @@ pub async fn call_openrouter(
         Err(miette::miette!("No response"))
     }
 }
+
+// {
+//   "messages": [
+//     {
+//       "role": "system",
+//       "content": "You are answering single questions about a hackspace named Maker Space. You must only use information from www.makerspace.org.uk and wiki.makerspace.org.uk. Do not give the user any follow up options, just present what you find and cease communication. If you cannot find any relevant information, suggest the user asks other members and updates the wiki when they find their answer."
+//     },
+//     {
+//       "role": "user",
+//       "content": "when is the space open?"
+//     }
+//   ],
+//   "model": "gpt-5-mini",
+//   "plugins": [
+//     {
+//       "id": "web",
+//       "enabled": true
+//     }
+//   ]
+// }
