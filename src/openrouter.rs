@@ -28,7 +28,8 @@ impl Response {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum Output {
-    Reasoning,
+    #[allow(dead_code)]
+    Reasoning(serde_json::Value),
     Message(Message),
 }
 
@@ -77,10 +78,10 @@ pub(crate) async fn request(
         .into_diagnostic()?
         .error_for_status()
         .into_diagnostic()?;
-
-    info!("Response: {response:?}");
+    info!("Response meta: {response:?}");
 
     let response: Response = response.json().await.into_diagnostic()?;
+    info!("Response: {response:?}");
 
     response.result_text()
 }
