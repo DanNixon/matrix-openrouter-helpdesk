@@ -1,4 +1,5 @@
 use clap::Parser;
+use handlebars::Handlebars;
 use miette::IntoDiagnostic;
 use std::{fs, net::SocketAddr, path::PathBuf};
 
@@ -44,16 +45,16 @@ pub struct Config {
     /// Path to reply template file
     #[arg(env = "REPLY_TEMPLATE_FILE", long)]
     reply_template_file: Option<String>,
-
-    #[clap(skip)]
-    pub reply_template: String,
 }
 
 const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
 
+#[derive(Clone)]
 pub(crate) struct Context {
     pub args: Config,
     pub reply_template: String,
+    pub http_client: reqwest::Client,
+    handlebars: Handlebars<'static>,
 }
 
 impl Context {
@@ -66,11 +67,23 @@ impl Context {
         Ok(Self {
             args,
             reply_template,
+            http_client: reqwest::Client::new(),
+            handlebars: Handlebars::new(),
         })
     }
 
     pub(crate) fn from_cli() -> miette::Result<Self> {
         let args = Config::parse();
         Self::new(args)
+    }
+
+    pub fn render_reply(&self, response: &str) -> miette::Result<String> {
+        let data = serde_json::json!({
+            "response": response,
+        });
+
+        self.handlebars
+            .render_template(&self.reply_template, &data)
+            .into_diagnostic()
     }
 }
