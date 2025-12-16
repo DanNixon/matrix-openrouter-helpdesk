@@ -1,6 +1,7 @@
 mod context;
 mod o11y;
 mod openrouter;
+mod question;
 
 use crate::context::Context;
 use matrix_sdk::{
@@ -24,7 +25,6 @@ use matrix_sdk::{
 };
 use miette::IntoDiagnostic;
 use rand::{distr::Alphanumeric, Rng};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -349,47 +349,23 @@ async fn on_room_message(
     };
 
     let message_body = &text_content.body.trim();
-    let mention_username = format!("@{}", bot_id.localpart());
-
-    let question = {
-        let mut question = None;
-
-        if message_body.contains(&mention_username) {
-            let re = Regex::new(&format!(
-                "{mention_username}\\s*:\\s*(.+)|{mention_username}\\s+(.+)"
-            ))
-            .unwrap();
-            question = re
-                .captures(message_body)
-                .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
+    let bot_display_name = {
+        let request = matrix_sdk::ruma::api::client::profile::get_profile::v3::Request::new(
+            bot_id.to_owned(),
+        );
+        if let Ok(resp) = client.send(request).await {
+            resp.get_static::<DisplayName>().ok().flatten()
+        } else {
+            None
         }
-
-        if let Some(mentions) = event.content.mentions {
-            if mentions.user_ids.contains(bot_id) {
-                let request = matrix_sdk::ruma::api::client::profile::get_profile::v3::Request::new(
-                    bot_id.to_owned(),
-                );
-
-                if let Ok(resp) = client.send(request).await {
-                    let bot_display_name = resp
-                        .get_static::<DisplayName>()
-                        .ok()
-                        .flatten()
-                        .unwrap_or(mention_username);
-
-                    let re = Regex::new(&format!(
-                        "{bot_display_name}\\s*:\\s*(.+)|{bot_display_name}\\s+(.+)"
-                    ))
-                    .unwrap();
-                    question = re
-                        .captures(message_body)
-                        .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
-                }
-            }
-        }
-
-        question
     };
+
+    let question = question::extract(
+        message_body,
+        event.content.mentions,
+        bot_id,
+        bot_display_name,
+    );
 
     if question.is_none() {
         debug!("did not match question format: {message_body}");
@@ -416,7 +392,7 @@ async fn on_room_message(
         &ctx.args.openrouter_api_key,
         &ctx.args.model,
         &ctx.args.system_prompt,
-        question,
+        &question,
     )
     .await
     {
