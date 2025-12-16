@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Download image archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: oci-image-matrix-openrouter-helpdesk
 
