@@ -55,7 +55,7 @@ jobs:
             "docker-archive:/tmp/oci-image-matrix-openrouter-helpdesk.tar"
 
       - name: Upload image archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: oci-image-matrix-openrouter-helpdesk
           path: /tmp/oci-image-matrix-openrouter-helpdesk.tar
