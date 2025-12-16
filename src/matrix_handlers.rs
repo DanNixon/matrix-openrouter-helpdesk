@@ -75,7 +75,7 @@ pub async fn on_room_message(
         &ctx.args.openrouter_api_key,
         &ctx.args.model,
         &ctx.args.system_prompt,
-        &question,
+        question,
     )
     .await
     {
