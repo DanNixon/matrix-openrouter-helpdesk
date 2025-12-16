@@ -5,7 +5,7 @@ use std::{fs, net::SocketAddr, path::PathBuf};
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
-pub struct Cli {
+pub(crate) struct Cli {
     /// Matrix homeserver URL
     #[arg(env = "MATRIX_HOMESERVER_URL", long)]
     pub matrix_homeserver_url: String,
@@ -58,7 +58,7 @@ pub(crate) struct Context {
 }
 
 impl Context {
-    pub fn new(args: Cli) -> miette::Result<Self> {
+    pub(crate) fn new(args: Cli) -> miette::Result<Self> {
         let reply_template = match &args.reply_template_file {
             Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
@@ -77,7 +77,7 @@ impl Context {
         Self::new(args)
     }
 
-    pub fn render_reply(&self, response: &str) -> miette::Result<String> {
+    pub(crate) fn render_reply(&self, response: &str) -> miette::Result<String> {
         let data = serde_json::json!({
             "response": response,
         });

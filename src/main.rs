@@ -2,25 +2,34 @@ mod context;
 mod o11y;
 mod openrouter;
 
-use std::{
-    io::{self, Write},
-    path::{Path, PathBuf},
-};
+use crate::context::Context;
 use matrix_sdk::{
-    Client, Error, LoopCtrl, Room, RoomState,
     authentication::matrix::MatrixSession,
     config::SyncSettings,
     ruma::{
         api::client::filter::FilterDefinition,
-        events::{reaction::ReactionEventContent, relation::{Annotation, InReplyTo}, room::{member::StrippedRoomMemberEvent, message::{MessageType, OriginalSyncRoomMessageEvent, Relation, RoomMessageEventContent}}},
+        events::{
+            reaction::ReactionEventContent,
+            relation::{Annotation, InReplyTo},
+            room::{
+                member::StrippedRoomMemberEvent,
+                message::{
+                    MessageType, OriginalSyncRoomMessageEvent, Relation, RoomMessageEventContent,
+                },
+            },
+        },
     },
+    Client, Error, LoopCtrl, Room, RoomState,
 };
 use miette::IntoDiagnostic;
-use rand::{Rng, distr::Alphanumeric};
+use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
+use std::{
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 use tokio::fs;
 use tracing::{error, info};
-use crate::context::Context;
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {
@@ -38,7 +47,10 @@ async fn main() -> miette::Result<()> {
     let (client, sync_token) = if session_file.exists() {
         restore_session(&session_file).await?
     } else {
-        (login(&ctx.args.matrix_session_path, &session_file).await?, None)
+        (
+            login(&ctx.args.matrix_session_path, &session_file).await?,
+            None,
+        )
     };
 
     sync(client, ctx, sync_token).await
@@ -77,24 +89,34 @@ struct FullSession {
 
 /// Restore a previous session.
 async fn restore_session(session_file: &Path) -> miette::Result<(Client, Option<String>)> {
-    println!("Previous session found in '{}'", session_file.to_string_lossy());
+    println!(
+        "Previous session found in '{}'",
+        session_file.to_string_lossy()
+    );
 
     // The session was serialized as JSON in a file.
     let serialized_session = fs::read_to_string(session_file).await.into_diagnostic()?;
-    let FullSession { client_session, user_session, sync_token } =
-        serde_json::from_str(&serialized_session).into_diagnostic()?;
+    let FullSession {
+        client_session,
+        user_session,
+        sync_token,
+    } = serde_json::from_str(&serialized_session).into_diagnostic()?;
 
     // Build the client with the previous settings from the session.
     let client = Client::builder()
         .homeserver_url(client_session.homeserver)
         .sqlite_store(client_session.db_path, Some(&client_session.passphrase))
         .build()
-        .await.into_diagnostic()?;
+        .await
+        .into_diagnostic()?;
 
     println!("Restoring session for {}…", user_session.meta.user_id);
 
     // Restore the Matrix user session.
-    client.restore_session(user_session).await.into_diagnostic()?;
+    client
+        .restore_session(user_session)
+        .await
+        .into_diagnostic()?;
 
     Ok((client, sync_token))
 }
@@ -110,13 +132,17 @@ async fn login(data_dir: &Path, session_file: &Path) -> miette::Result<Client> {
         print!("\nUsername: ");
         io::stdout().flush().expect("Unable to write to stdout");
         let mut username = String::new();
-        io::stdin().read_line(&mut username).expect("Unable to read user input");
+        io::stdin()
+            .read_line(&mut username)
+            .expect("Unable to read user input");
         username = username.trim().to_owned();
 
         print!("Password: ");
         io::stdout().flush().expect("Unable to write to stdout");
         let mut password = String::new();
-        io::stdin().read_line(&mut password).expect("Unable to read user input");
+        io::stdin()
+            .read_line(&mut password)
+            .expect("Unable to read user input");
         password = password.trim().to_owned();
 
         match matrix_auth
@@ -139,10 +165,18 @@ async fn login(data_dir: &Path, session_file: &Path) -> miette::Result<Client> {
     // This is not very secure, for simplicity. If the system provides a way of
     // storing secrets securely, it should be used instead.
     // Note that we could also build the user session from the login response.
-    let user_session = matrix_auth.session().expect("A logged-in client should have a session");
-    let serialized_session =
-        serde_json::to_string(&FullSession { client_session, user_session, sync_token: None }).into_diagnostic()?;
-    fs::write(session_file, serialized_session).await.into_diagnostic()?;
+    let user_session = matrix_auth
+        .session()
+        .expect("A logged-in client should have a session");
+    let serialized_session = serde_json::to_string(&FullSession {
+        client_session,
+        user_session,
+        sync_token: None,
+    })
+    .into_diagnostic()?;
+    fs::write(session_file, serialized_session)
+        .await
+        .into_diagnostic()?;
 
     println!("Session persisted in {}", session_file.to_string_lossy());
 
@@ -162,13 +196,19 @@ async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)
     // Generating a subfolder for the database is not mandatory, but it is useful if
     // you allow several clients to run at the same time. Each one must have a
     // separate database, which is a different folder with the SQLite store.
-    let db_subfolder: String =
-        (&mut rng).sample_iter(Alphanumeric).take(7).map(char::from).collect();
+    let db_subfolder: String = (&mut rng)
+        .sample_iter(Alphanumeric)
+        .take(7)
+        .map(char::from)
+        .collect();
     let db_path = data_dir.join(db_subfolder);
 
     // Generate a random passphrase.
-    let passphrase: String =
-        (&mut rng).sample_iter(Alphanumeric).take(32).map(char::from).collect();
+    let passphrase: String = (&mut rng)
+        .sample_iter(Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect();
 
     // We create a loop here so the user can retry if an error happens.
     loop {
@@ -176,7 +216,9 @@ async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)
 
         print!("Homeserver URL: ");
         io::stdout().flush().expect("Unable to write to stdout");
-        io::stdin().read_line(&mut homeserver).expect("Unable to read user input");
+        io::stdin()
+            .read_line(&mut homeserver)
+            .expect("Unable to read user input");
 
         println!("\nChecking homeserver…");
 
@@ -189,7 +231,16 @@ async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)
             .build()
             .await
         {
-            Ok(client) => return Ok((client, ClientSession { homeserver, db_path, passphrase })),
+            Ok(client) => {
+                return Ok((
+                    client,
+                    ClientSession {
+                        homeserver,
+                        db_path,
+                        passphrase,
+                    },
+                ))
+            }
             Err(error) => match &error {
                 matrix_sdk::ClientBuildError::AutoDiscovery(_)
                 | matrix_sdk::ClientBuildError::Url(_)
@@ -279,7 +330,8 @@ async fn sync(
 
             Ok(LoopCtrl::Continue)
         })
-        .await.into_diagnostic()?;
+        .await
+        .into_diagnostic()?;
 
     Ok(())
 }
@@ -289,11 +341,14 @@ async fn sync(
 /// the sync token from the store.
 async fn persist_sync_token(session_file: &Path, sync_token: String) -> miette::Result<()> {
     let serialized_session = fs::read_to_string(session_file).await.into_diagnostic()?;
-    let mut full_session: FullSession = serde_json::from_str(&serialized_session).into_diagnostic()?;
+    let mut full_session: FullSession =
+        serde_json::from_str(&serialized_session).into_diagnostic()?;
 
     full_session.sync_token = Some(sync_token);
     let serialized_session = serde_json::to_string(&full_session).into_diagnostic()?;
-    fs::write(session_file, serialized_session).await.into_diagnostic()?;
+    fs::write(session_file, serialized_session)
+        .await
+        .into_diagnostic()?;
 
     Ok(())
 }
@@ -321,11 +376,7 @@ async fn auto_join_room(room_member: StrippedRoomMemberEvent, client: Client, ro
     }
 }
 
-pub async fn on_room_message(
-    event: OriginalSyncRoomMessageEvent,
-    room: Room,
-    ctx: Context,
-) {
+async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room, ctx: Context) {
     if room.state() != RoomState::Joined {
         return;
     }

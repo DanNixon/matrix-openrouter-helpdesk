@@ -42,7 +42,7 @@ struct MessageContent {
     text: String,
 }
 
-pub async fn request(
+pub(crate) async fn request(
     http_client: &reqwest::Client,
     api_key: &str,
     model: &str,
