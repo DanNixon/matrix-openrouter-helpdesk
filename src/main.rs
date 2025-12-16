@@ -432,7 +432,7 @@ async fn on_room_message(
             };
 
             // Send the response as a reply
-            let mut content = RoomMessageEventContent::text_plain(rendered_reply);
+            let mut content = RoomMessageEventContent::text_markdown(rendered_reply);
             content.relates_to = Some(Relation::Reply {
                 in_reply_to: InReplyTo::new(event.event_id.clone()),
             });
