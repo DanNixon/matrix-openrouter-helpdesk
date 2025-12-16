@@ -1,7 +1,6 @@
-use crate::config::Config;
+use crate::config::Context;
 use crate::metrics::record_request_metric;
 use crate::openrouter::call_openrouter;
-use crate::templates::TemplateRenderer;
 use matrix_sdk::{
     room::Room,
     ruma::{
@@ -24,10 +23,8 @@ use tracing::{error, info};
 pub async fn on_room_message(
     event: OriginalSyncRoomMessageEvent,
     room: Room,
+    ctx: Context,
     bot_user_id: OwnedUserId,
-    http_client: reqwest::Client,
-    config: Config,
-    template_renderer: TemplateRenderer,
 ) {
     // Ignore messages from the bot itself
     if event.sender == bot_user_id {
@@ -76,9 +73,9 @@ pub async fn on_room_message(
 
     // Call OpenRouter to get a response
     match call_openrouter(
-        &http_client,
-        &config.openrouter_api_key,
-        &config.model,
+        &ctx.http_client,
+        &ctx.args.openrouter_api_key,
+        &ctx.args.model,
         &question,
     )
     .await
@@ -86,7 +83,7 @@ pub async fn on_room_message(
         Ok(answer) => {
             // Render the reply template
             let rendered_reply =
-                match template_renderer.render_reply(&config.reply_template, &answer) {
+                match ctx.render_reply(&answer) {
                     Ok(r) => r,
                     Err(e) => {
                         error!("Failed to render reply template: {}", e);
@@ -126,7 +123,7 @@ pub async fn on_room_message(
     }
 }
 
-pub async fn on_stripped_state_member(
+pub async fn auto_join_room(
     room_member: StrippedRoomMemberEvent,
     client: Client,
     room: Room,

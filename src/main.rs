@@ -3,11 +3,9 @@ mod matrix_handlers;
 mod metrics;
 mod openrouter;
 mod session;
-mod templates;
 
-use crate::matrix_handlers::{on_room_message, on_stripped_state_member};
+use crate::matrix_handlers::{on_room_message, auto_join_room};
 use crate::session::restore_or_create_session;
-use crate::templates::TemplateRenderer;
 use matrix_sdk::config::SyncSettings;
 use matrix_sdk::ruma::api::client::filter::FilterDefinition;
 use matrix_sdk::{
@@ -43,29 +41,23 @@ async fn main() -> miette::Result<()> {
         .to_owned();
     info!("Logged in as {}", bot_user_id);
 
-    let http_client = reqwest::Client::new();
-
     // Set up auto-join for room invites
     client.add_event_handler(
         move |room_member: StrippedRoomMemberEvent, client: Client, room: Room| async move {
-            on_stripped_state_member(room_member, client, room).await;
+            auto_join_room(room_member, client, room).await;
         },
     );
 
     // Set up message handler
     client.add_event_handler(move |event: OriginalSyncRoomMessageEvent, room: Room| {
+        let ctx = ctx.clone();
         let bot_user_id = bot_user_id.clone();
-        let http_client = http_client.clone();
-        let config = config.clone();
-        let template_renderer = TemplateRenderer::new();
         async move {
             on_room_message(
                 event,
                 room,
+                ctx,
                 bot_user_id,
-                http_client,
-                config,
-                template_renderer,
             )
             .await;
         }
