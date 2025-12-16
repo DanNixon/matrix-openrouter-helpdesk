@@ -18,18 +18,17 @@ use matrix_sdk::{
                 },
             },
         },
+        UserId,
     },
     Client, Error, LoopCtrl, Room, RoomState,
 };
 use miette::IntoDiagnostic;
 use rand::{distr::Alphanumeric, Rng};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{
-    io::{self, Write},
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {
@@ -47,10 +46,7 @@ async fn main() -> miette::Result<()> {
     let (client, sync_token) = if session_file.exists() {
         restore_session(&session_file).await?
     } else {
-        (
-            login(&ctx.args.matrix_session_path, &session_file).await?,
-            None,
-        )
+        (login(&ctx).await?, None)
     };
 
     sync(client, ctx, sync_token).await
@@ -89,7 +85,7 @@ struct FullSession {
 
 /// Restore a previous session.
 async fn restore_session(session_file: &Path) -> miette::Result<(Client, Option<String>)> {
-    println!(
+    info!(
         "Previous session found in '{}'",
         session_file.to_string_lossy()
     );
@@ -110,7 +106,7 @@ async fn restore_session(session_file: &Path) -> miette::Result<(Client, Option<
         .await
         .into_diagnostic()?;
 
-    println!("Restoring session for {}…", user_session.meta.user_id);
+    info!("Restoring session for {}…", user_session.meta.user_id);
 
     // Restore the Matrix user session.
     client
@@ -122,44 +118,20 @@ async fn restore_session(session_file: &Path) -> miette::Result<(Client, Option<
 }
 
 /// Login with a new device.
-async fn login(data_dir: &Path, session_file: &Path) -> miette::Result<Client> {
-    println!("No previous session found, logging in…");
+async fn login(ctx: &Context) -> miette::Result<Client> {
+    info!("No previous session found, logging in…");
 
-    let (client, client_session) = build_client(data_dir).await?;
+    let (client, client_session) = build_client(ctx).await?;
     let matrix_auth = client.matrix_auth();
 
-    loop {
-        print!("\nUsername: ");
-        io::stdout().flush().expect("Unable to write to stdout");
-        let mut username = String::new();
-        io::stdin()
-            .read_line(&mut username)
-            .expect("Unable to read user input");
-        username = username.trim().to_owned();
+    matrix_auth
+        .login_username(&ctx.args.matrix_username, &ctx.args.matrix_password)
+        .initial_device_display_name("matrix-openrouter-helpdesk")
+        .await
+        .into_diagnostic()?;
+    info!("Logged in as {}", ctx.args.matrix_username);
 
-        print!("Password: ");
-        io::stdout().flush().expect("Unable to write to stdout");
-        let mut password = String::new();
-        io::stdin()
-            .read_line(&mut password)
-            .expect("Unable to read user input");
-        password = password.trim().to_owned();
-
-        match matrix_auth
-            .login_username(&username, &password)
-            .initial_device_display_name("persist-session client")
-            .await
-        {
-            Ok(_) => {
-                println!("Logged in as {username}");
-                break;
-            }
-            Err(error) => {
-                println!("Error logging in: {error}");
-                println!("Please try again\n");
-            }
-        }
-    }
+    let session_file = ctx.matrix_session_file();
 
     // Persist the session to reuse it later.
     // This is not very secure, for simplicity. If the system provides a way of
@@ -174,11 +146,11 @@ async fn login(data_dir: &Path, session_file: &Path) -> miette::Result<Client> {
         sync_token: None,
     })
     .into_diagnostic()?;
-    fs::write(session_file, serialized_session)
+    fs::write(&session_file, serialized_session)
         .await
         .into_diagnostic()?;
 
-    println!("Session persisted in {}", session_file.to_string_lossy());
+    info!("Session persisted in {}", session_file.to_string_lossy());
 
     // After logging in, you might want to verify this session with another one (see
     // the `emoji_verification` example), or bootstrap cross-signing if this is your
@@ -190,7 +162,7 @@ async fn login(data_dir: &Path, session_file: &Path) -> miette::Result<Client> {
 }
 
 /// Build a new client.
-async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)> {
+async fn build_client(ctx: &Context) -> miette::Result<(Client, ClientSession)> {
     let mut rng = rand::rng();
 
     // Generating a subfolder for the database is not mandatory, but it is useful if
@@ -201,7 +173,7 @@ async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)
         .take(7)
         .map(char::from)
         .collect();
-    let db_path = data_dir.join(db_subfolder);
+    let db_path = ctx.args.matrix_session_path.join(db_subfolder);
 
     // Generate a random passphrase.
     let passphrase: String = (&mut rng)
@@ -210,51 +182,23 @@ async fn build_client(data_dir: &Path) -> miette::Result<(Client, ClientSession)
         .map(char::from)
         .collect();
 
-    // We create a loop here so the user can retry if an error happens.
-    loop {
-        let mut homeserver = String::new();
+    let homeserver = ctx.args.matrix_homeserver_url.clone();
 
-        print!("Homeserver URL: ");
-        io::stdout().flush().expect("Unable to write to stdout");
-        io::stdin()
-            .read_line(&mut homeserver)
-            .expect("Unable to read user input");
+    let client = Client::builder()
+        .homeserver_url(&homeserver)
+        .sqlite_store(&db_path, Some(&passphrase))
+        .build()
+        .await
+        .into_diagnostic()?;
 
-        println!("\nChecking homeserver…");
-
-        match Client::builder()
-            .homeserver_url(&homeserver)
-            // We use the SQLite store, which is enabled by default. This is the crucial part to
-            // persist the encryption setup.
-            // Note that other store backends are available and you can even implement your own.
-            .sqlite_store(&db_path, Some(&passphrase))
-            .build()
-            .await
-        {
-            Ok(client) => {
-                return Ok((
-                    client,
-                    ClientSession {
-                        homeserver,
-                        db_path,
-                        passphrase,
-                    },
-                ))
-            }
-            Err(error) => match &error {
-                matrix_sdk::ClientBuildError::AutoDiscovery(_)
-                | matrix_sdk::ClientBuildError::Url(_)
-                | matrix_sdk::ClientBuildError::Http(_) => {
-                    println!("Error checking the homeserver: {error}");
-                    println!("Please try again\n");
-                }
-                _ => {
-                    // Forward other errors, it's unlikely we can retry with a different outcome.
-                    return Err(miette::miette!("Matrix client build error: {error}"));
-                }
-            },
-        }
-    }
+    Ok((
+        client,
+        ClientSession {
+            homeserver,
+            db_path,
+            passphrase,
+        },
+    ))
 }
 
 /// Setup the client to listen to new messages.
@@ -263,7 +207,7 @@ async fn sync(
     ctx: Context,
     initial_sync_token: Option<String>,
 ) -> miette::Result<()> {
-    println!("Launching a first sync to ignore past messages…");
+    info!("Launching a first sync to ignore past messages…");
 
     let session_file = &ctx.matrix_session_file();
 
@@ -295,19 +239,26 @@ async fn sync(
                 break;
             }
             Err(error) => {
-                println!("An error occurred during initial sync: {error}");
-                println!("Trying again…");
+                warn!("An error occurred during initial sync: {error}");
+                warn!("Trying again…");
             }
         }
     }
 
-    println!("The client is ready! Listening to new messages…");
+    info!("The client is ready! Listening to new messages…");
+
+    let bot_id = client
+        .user_id()
+        .ok_or_else(|| miette::miette!("No bot ID for client"))?
+        .to_owned();
+    info!("My user ID is {bot_id:?}");
 
     // Listen for query messages
     client.add_event_handler(move |event: OriginalSyncRoomMessageEvent, room: Room| {
         let ctx = ctx.clone();
+        let bot_id = bot_id.clone();
         async move {
-            on_room_message(event, room, ctx).await;
+            on_room_message(event, room, ctx, &bot_id).await;
         }
     });
 
@@ -376,7 +327,16 @@ async fn auto_join_room(room_member: StrippedRoomMemberEvent, client: Client, ro
     }
 }
 
-async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room, ctx: Context) {
+async fn on_room_message(
+    event: OriginalSyncRoomMessageEvent,
+    room: Room,
+    ctx: Context,
+    bot_id: &UserId,
+) {
+    if event.sender == bot_id {
+        return;
+    }
+
     if room.state() != RoomState::Joined {
         return;
     }
@@ -385,24 +345,40 @@ async fn on_room_message(event: OriginalSyncRoomMessageEvent, room: Room, ctx: C
         return;
     };
 
-    let bot_mention = format!("@{}", ctx.args.matrix_username);
-    let message_body = &text_content.body;
+    let message_body = &text_content.body.trim();
+    let mention_username = format!("@{}", bot_id.localpart());
 
-    // Check if the message mentions the bot (case insensitive)
-    let has_mention = message_body
-        .get(..bot_mention.len())
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(&bot_mention));
+    let mentioned = {
+        let mut mentioned = false;
 
-    if !has_mention {
+        if let Some(mentions) = event.content.mentions {
+            if mentions.user_ids.contains(bot_id) {
+                mentioned = true;
+            }
+        }
+
+        if message_body.contains(&mention_username) {
+            mentioned = true;
+        }
+
+        mentioned
+    };
+
+    if !mentioned {
         return;
     }
 
     // Extract the question after the bot mention (safe because we verified the prefix exists)
-    let question = message_body.get(bot_mention.len()..).unwrap_or("").trim();
+    let re = Regex::new(r"@?\w+\s*:\s*(.+)|@?\w+\s+(.+)").unwrap();
+    let question = re
+        .captures(&message_body)
+        .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
 
-    if question.is_empty() {
+    if question.is_none() {
+        debug!("did not match question format: {message_body}");
         return;
     }
+    let question = question.unwrap();
 
     info!("Processing question: {}", question);
 
