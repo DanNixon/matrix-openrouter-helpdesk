@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - main
@@ -25,8 +27,8 @@ jobs:
       - name: Run clippy
         run: cargo clippy -- -D warnings
 
-  container-image:
-    name: Container Image
+  build-container-image:
+    name: Build Container Image
     runs-on: ubuntu-latest
     needs:
       - code-quality
@@ -34,5 +36,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build container image
-        run: podman build -f Containerfile -t matrix-openrouter-helpdesk:latest .
+      - name: Build image
+        run: |
+          buildah build \
+            -f Containerfile \
+            -t matrix-openrouter-helpdesk:latest \
+            .
+
+      - name: Export image to archive
+        run: |
+          set -eo pipefail
+
+          # See https://github.com/actions/runner-images/issues/10443
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+          skopeo copy \
+            "containers-storage:localhost/matrix-openrouter-helpdesk:latest" \
+            "docker-archive:/tmp/oci-image-matrix-openrouter-helpdesk.tar"
+
+      - name: Upload image archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: oci-image-matrix-openrouter-helpdesk
+          path: /tmp/oci-image-matrix-openrouter-helpdesk.tar
+
+  publish-container-image:
+    name: Publish Container Image
+    if: (github.ref_name == 'main' || github.ref_type == 'tag') && github.repository == 'DanNixon/matrix-openrouter-helpdesk'
+    needs:
+      - build-container-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download image archive
+        uses: actions/download-artifact@v4
+        with:
+          name: oci-image-matrix-openrouter-helpdesk
+
+      - name: Publish image
+        run: |
+          set -eo pipefail
+
+          # See https://github.com/actions/runner-images/issues/10443
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+          local_cr="docker-archive:oci-image-matrix-openrouter-helpdesk.tar"
+
+          # The container registry to push images to
+          remote_cr="docker://ghcr.io/dannixon/matrix-openrouter-helpdesk"
+          remote_cr_creds="${{ github.repository_owner }}:${{ github.token }}"
+
+          # Push image using the Git ref name as the image tag (i.e. "main" or the tag name)
+          skopeo copy --dest-creds="$remote_cr_creds" "$local_cr" "$remote_cr:${{ github.ref_name }}"
+
+          # Push image using the Git SHA as the image tag
+          skopeo copy --dest-creds="$remote_cr_creds" "$local_cr" "$remote_cr:${{ github.sha }}"
+
+          # If the trigger was a tag (i.e. a release)
+          if [[ "${{ github.ref_type }}" == 'tag' ]]; then
+            skopeo copy --dest-creds="$remote_cr_creds" "$local_cr" "$remote_cr:latest"
+          fi
