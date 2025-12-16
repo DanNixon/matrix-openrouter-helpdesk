@@ -20,10 +20,10 @@ RUN apt-get update && \
 WORKDIR /app
 COPY --from=builder /app/target/release/matrix-openrouter-helpdesk /app/matrix-openrouter-helpdesk
 
-ENV MATRIX_SESSION_PATH=/data/matrix_session
-ENV METRICS_ENDPOINT=0.0.0.0:9090
-
 VOLUME ["/data"]
+ENV MATRIX_SESSION_PATH=/data/matrix_session
+
+ENV METRICS_ENDPOINT=0.0.0.0:9090
 EXPOSE 9090/tcp
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/matrix-openrouter-helpdesk"]
