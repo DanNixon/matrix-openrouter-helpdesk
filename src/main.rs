@@ -360,7 +360,7 @@ async fn on_room_message(
             ))
             .unwrap();
             question = re
-                .captures(&message_body)
+                .captures(message_body)
                 .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
         }
 
@@ -382,7 +382,7 @@ async fn on_room_message(
                     ))
                     .unwrap();
                     question = re
-                        .captures(&message_body)
+                        .captures(message_body)
                         .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
                 }
             }
