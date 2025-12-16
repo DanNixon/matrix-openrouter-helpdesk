@@ -2,4 +2,4 @@
 .devenv
 .devenv.flake.nix
 /target
-/session
+/matrix_session

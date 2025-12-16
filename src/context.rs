@@ -86,4 +86,8 @@ impl Context {
             .render_template(&self.reply_template, &data)
             .into_diagnostic()
     }
+
+    pub(crate) fn matrix_session_file(&self) -> PathBuf {
+        self.args.matrix_session_path.join("session")
+    }
 }
