@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use miette::IntoDiagnostic;
 use serde::Deserialize;
-use tracing::debug;
+use tracing::info;
 
 #[derive(Debug, Deserialize)]
 struct Response {
@@ -26,7 +26,7 @@ impl Response {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 enum Output {
     Reasoning,
     Message(Message),
@@ -65,8 +65,10 @@ pub(crate) async fn request(
         "model": model,
     });
 
+    info!("Request: {request:?}");
+
     let response = http_client
-        .post("https://openrouter.ai/api/v1/chat/completions")
+        .post("https://openrouter.ai/api/v1/responses")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&request)
@@ -76,7 +78,7 @@ pub(crate) async fn request(
         .error_for_status()
         .into_diagnostic()?;
 
-    debug!("Response: {response:?}");
+    info!("Response: {response:?}");
 
     let response: Response = response.json().await.into_diagnostic()?;
 
