@@ -1,11 +1,10 @@
-mod config;
+mod context;
 mod matrix_handlers;
 mod metrics;
 mod openrouter;
 mod session;
 
-use crate::matrix_handlers::{on_room_message, auto_join_room};
-use crate::session::restore_or_create_session;
+use crate::context::Context;
 use matrix_sdk::config::SyncSettings;
 use matrix_sdk::ruma::api::client::filter::FilterDefinition;
 use matrix_sdk::{
@@ -23,7 +22,7 @@ async fn main() -> miette::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Load configuration
-    let ctx = config::Context::from_cli()?;
+    let ctx = Context::from_cli()?;
 
     // Set up Prometheus metrics exporter
     let _prometheus_handle = PrometheusBuilder::new()
@@ -33,7 +32,7 @@ async fn main() -> miette::Result<()> {
     info!("Metrics server listening on {}", ctx.args.metrics_endpoint);
 
     // Restore or create Matrix session
-    let client = restore_or_create_session(&ctx.args).await?;
+    let client = session::restore_or_create_session(&ctx.args).await?;
 
     let bot_user_id = client
         .user_id()
@@ -44,7 +43,7 @@ async fn main() -> miette::Result<()> {
     // Set up auto-join for room invites
     client.add_event_handler(
         move |room_member: StrippedRoomMemberEvent, client: Client, room: Room| async move {
-            auto_join_room(room_member, client, room).await;
+            matrix_handlers::auto_join_room(room_member, client, room).await;
         },
     );
 
@@ -53,13 +52,7 @@ async fn main() -> miette::Result<()> {
         let ctx = ctx.clone();
         let bot_user_id = bot_user_id.clone();
         async move {
-            on_room_message(
-                event,
-                room,
-                ctx,
-                bot_user_id,
-            )
-            .await;
+            matrix_handlers::on_room_message(event, room, ctx, bot_user_id).await;
         }
     });
 

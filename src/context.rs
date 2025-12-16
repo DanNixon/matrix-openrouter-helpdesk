@@ -5,7 +5,7 @@ use std::{fs, net::SocketAddr, path::PathBuf};
 
 #[derive(Parser, Clone)]
 #[command(author, version, about, long_about = None)]
-pub struct Config {
+pub struct Cli {
     /// Matrix homeserver URL
     #[arg(env = "MATRIX_HOMESERVER_URL", long)]
     pub matrix_homeserver_url: String,
@@ -51,14 +51,14 @@ const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
 
 #[derive(Clone)]
 pub(crate) struct Context {
-    pub args: Config,
+    pub args: Cli,
     pub reply_template: String,
     pub http_client: reqwest::Client,
     handlebars: Handlebars<'static>,
 }
 
 impl Context {
-    pub fn new(args: Config) -> miette::Result<Self> {
+    pub fn new(args: Cli) -> miette::Result<Self> {
         let reply_template = match &args.reply_template_file {
             Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
@@ -73,7 +73,7 @@ impl Context {
     }
 
     pub(crate) fn from_cli() -> miette::Result<Self> {
-        let args = Config::parse();
+        let args = Cli::parse();
         Self::new(args)
     }
 
