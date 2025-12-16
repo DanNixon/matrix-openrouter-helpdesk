@@ -1,6 +1,6 @@
 mod context;
 mod matrix_handlers;
-mod metrics;
+mod o11y;
 mod openrouter;
 mod session;
 
@@ -12,7 +12,6 @@ use matrix_sdk::{
     ruma::events::room::{member::StrippedRoomMemberEvent, message::OriginalSyncRoomMessageEvent},
     Client,
 };
-use metrics_exporter_prometheus::PrometheusBuilder;
 use miette::IntoDiagnostic;
 use tracing::info;
 
@@ -25,11 +24,7 @@ async fn main() -> miette::Result<()> {
     let ctx = Context::from_cli()?;
 
     // Set up Prometheus metrics exporter
-    let _prometheus_handle = PrometheusBuilder::new()
-        .with_http_listener(ctx.args.metrics_endpoint)
-        .install_recorder()
-        .into_diagnostic()?;
-    info!("Metrics server listening on {}", ctx.args.metrics_endpoint);
+    o11y::init(ctx.args.metrics_endpoint)?;
 
     // Restore or create Matrix session
     let client = session::restore_or_create_session(&ctx.args).await?;

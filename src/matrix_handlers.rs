@@ -84,7 +84,7 @@ pub async fn on_room_message(
                 Ok(r) => r,
                 Err(e) => {
                     error!("Failed to render reply template: {}", e);
-                    crate::metrics::record_request_metric(&user_id, &room_id, "failure");
+                    crate::o11y::record_request(&user_id, &room_id, "failure");
                     return;
                 }
             };
@@ -97,9 +97,9 @@ pub async fn on_room_message(
 
             if let Err(e) = room.send(content).await {
                 error!("Failed to send message: {}", e);
-                crate::metrics::record_request_metric(&user_id, &room_id, "failure");
+                crate::o11y::record_request(&user_id, &room_id, "failure");
             } else {
-                crate::metrics::record_request_metric(&user_id, &room_id, "success");
+                crate::o11y::record_request(&user_id, &room_id, "success");
             }
         }
         Err(e) => {
@@ -115,7 +115,7 @@ pub async fn on_room_message(
                 error!("Failed to send error message: {}", e);
             }
 
-            crate::metrics::record_request_metric(&user_id, &room_id, "failure");
+            crate::o11y::record_request(&user_id, &room_id, "failure");
         }
     }
 }
