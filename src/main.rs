@@ -7,7 +7,7 @@ use matrix_sdk::{
     authentication::matrix::MatrixSession,
     config::SyncSettings,
     ruma::{
-        api::client::filter::FilterDefinition,
+        api::client::{filter::FilterDefinition, profile::DisplayName},
         events::{
             reaction::ReactionEventContent,
             relation::{Annotation, InReplyTo},
@@ -254,13 +254,15 @@ async fn sync(
     info!("My user ID is {bot_id:?}");
 
     // Listen for query messages
-    client.add_event_handler(move |event: OriginalSyncRoomMessageEvent, room: Room| {
-        let ctx = ctx.clone();
-        let bot_id = bot_id.clone();
-        async move {
-            on_room_message(event, room, ctx, &bot_id).await;
-        }
-    });
+    client.add_event_handler(
+        move |event: OriginalSyncRoomMessageEvent, client: Client, room: Room| {
+            let ctx = ctx.clone();
+            let bot_id = bot_id.clone();
+            async move {
+                on_room_message(event, room, client, ctx, &bot_id).await;
+            }
+        },
+    );
 
     // Set up auto-join for room invites
     client.add_event_handler(
@@ -330,6 +332,7 @@ async fn auto_join_room(room_member: StrippedRoomMemberEvent, client: Client, ro
 async fn on_room_message(
     event: OriginalSyncRoomMessageEvent,
     room: Room,
+    client: Client,
     ctx: Context,
     bot_id: &UserId,
 ) {
@@ -348,31 +351,45 @@ async fn on_room_message(
     let message_body = &text_content.body.trim();
     let mention_username = format!("@{}", bot_id.localpart());
 
-    let mentioned = {
-        let mut mentioned = false;
+    let question = {
+        let mut question = None;
+
+        if message_body.contains(&mention_username) {
+            let re = Regex::new(&format!(
+                "{mention_username}\\s*:\\s*(.+)|{mention_username}\\s+(.+)"
+            ))
+            .unwrap();
+            question = re
+                .captures(&message_body)
+                .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
+        }
 
         if let Some(mentions) = event.content.mentions {
             if mentions.user_ids.contains(bot_id) {
-                mentioned = true;
+                let request = matrix_sdk::ruma::api::client::profile::get_profile::v3::Request::new(
+                    bot_id.to_owned(),
+                );
+
+                if let Ok(resp) = client.send(request).await {
+                    let bot_display_name = resp
+                        .get_static::<DisplayName>()
+                        .ok()
+                        .flatten()
+                        .unwrap_or(mention_username);
+
+                    let re = Regex::new(&format!(
+                        "{bot_display_name}\\s*:\\s*(.+)|{bot_display_name}\\s+(.+)"
+                    ))
+                    .unwrap();
+                    question = re
+                        .captures(&message_body)
+                        .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
+                }
             }
         }
 
-        if message_body.contains(&mention_username) {
-            mentioned = true;
-        }
-
-        mentioned
+        question
     };
-
-    if !mentioned {
-        return;
-    }
-
-    // Extract the question after the bot mention (safe because we verified the prefix exists)
-    let re = Regex::new(r"@?\w+\s*:\s*(.+)|@?\w+\s+(.+)").unwrap();
-    let question = re
-        .captures(&message_body)
-        .map(|c| c.get(1).or(c.get(2)).unwrap().as_str());
 
     if question.is_none() {
         debug!("did not match question format: {message_body}");
