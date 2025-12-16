@@ -23,7 +23,7 @@ struct Choice {
     message: Message,
 }
 
-pub async fn call_openrouter(
+pub async fn request(
     http_client: &reqwest::Client,
     api_key: &str,
     model: &str,

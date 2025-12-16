@@ -1,6 +1,4 @@
-use crate::config::Context;
-use crate::metrics::record_request_metric;
-use crate::openrouter::call_openrouter;
+use crate::context::Context;
 use matrix_sdk::{
     room::Room,
     ruma::{
@@ -72,7 +70,7 @@ pub async fn on_room_message(
     let user_id = event.sender.to_string();
 
     // Call OpenRouter to get a response
-    match call_openrouter(
+    match crate::openrouter::request(
         &ctx.http_client,
         &ctx.args.openrouter_api_key,
         &ctx.args.model,
@@ -82,15 +80,14 @@ pub async fn on_room_message(
     {
         Ok(answer) => {
             // Render the reply template
-            let rendered_reply =
-                match ctx.render_reply(&answer) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        error!("Failed to render reply template: {}", e);
-                        record_request_metric(&user_id, &room_id, "failure");
-                        return;
-                    }
-                };
+            let rendered_reply = match ctx.render_reply(&answer) {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("Failed to render reply template: {}", e);
+                    crate::metrics::record_request_metric(&user_id, &room_id, "failure");
+                    return;
+                }
+            };
 
             // Send the response as a reply
             let mut content = RoomMessageEventContent::text_plain(rendered_reply);
@@ -100,9 +97,9 @@ pub async fn on_room_message(
 
             if let Err(e) = room.send(content).await {
                 error!("Failed to send message: {}", e);
-                record_request_metric(&user_id, &room_id, "failure");
+                crate::metrics::record_request_metric(&user_id, &room_id, "failure");
             } else {
-                record_request_metric(&user_id, &room_id, "success");
+                crate::metrics::record_request_metric(&user_id, &room_id, "success");
             }
         }
         Err(e) => {
@@ -118,16 +115,12 @@ pub async fn on_room_message(
                 error!("Failed to send error message: {}", e);
             }
 
-            record_request_metric(&user_id, &room_id, "failure");
+            crate::metrics::record_request_metric(&user_id, &room_id, "failure");
         }
     }
 }
 
-pub async fn auto_join_room(
-    room_member: StrippedRoomMemberEvent,
-    client: Client,
-    room: Room,
-) {
+pub async fn auto_join_room(room_member: StrippedRoomMemberEvent, client: Client, room: Room) {
     let Some(user_id) = client.user_id() else {
         error!("Client user_id is not available");
         return;

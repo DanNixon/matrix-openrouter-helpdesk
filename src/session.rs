@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::context::Cli;
 use matrix_sdk::Client;
 use miette::IntoDiagnostic;
 use rand::{distr::Alphanumeric, Rng};
@@ -21,12 +21,12 @@ struct FullSession {
 }
 
 /// Restore a previous session or create a new one.
-pub async fn restore_or_create_session(config: &Config) -> miette::Result<Client> {
-    let session_file = config.matrix_session_path.join("session.json");
-    let db_path = config.matrix_session_path.join("db");
+pub async fn restore_or_create_session(args: &Cli) -> miette::Result<Client> {
+    let session_file = args.matrix_session_path.join("session.json");
+    let db_path = args.matrix_session_path.join("db");
 
     // Create session directory if it doesn't exist
-    fs::create_dir_all(&config.matrix_session_path)
+    fs::create_dir_all(&args.matrix_session_path)
         .await
         .into_diagnostic()?;
 
@@ -35,7 +35,7 @@ pub async fn restore_or_create_session(config: &Config) -> miette::Result<Client
         restore_session(&session_file).await
     } else {
         info!("No previous session found, creating new session...");
-        login(config, &db_path, &session_file).await
+        login(args, &db_path, &session_file).await
     }
 }
 
@@ -59,7 +59,7 @@ async fn restore_session(session_file: &Path) -> miette::Result<Client> {
 }
 
 /// Login with a new device and persist the session.
-async fn login(config: &Config, db_path: &Path, session_file: &Path) -> miette::Result<Client> {
+async fn login(args: &Cli, db_path: &Path, session_file: &Path) -> miette::Result<Client> {
     let mut rng = rand::rng();
 
     // Generate a random passphrase for the database.
@@ -71,7 +71,7 @@ async fn login(config: &Config, db_path: &Path, session_file: &Path) -> miette::
 
     // Build the client with SQLite store for encryption support
     let client = Client::builder()
-        .homeserver_url(&config.matrix_homeserver_url)
+        .homeserver_url(&args.matrix_homeserver_url)
         .sqlite_store(db_path, Some(&passphrase))
         .build()
         .await
@@ -80,14 +80,14 @@ async fn login(config: &Config, db_path: &Path, session_file: &Path) -> miette::
     // Login
     client
         .matrix_auth()
-        .login_username(&config.matrix_username, &config.matrix_password)
+        .login_username(&args.matrix_username, &args.matrix_password)
         .initial_device_display_name("OpenRouter Helpdesk Bot")
         .await
         .into_diagnostic()?;
 
     // Persist the session metadata (the actual session data is in the SQLite store)
     let session_data = FullSession {
-        homeserver: config.matrix_homeserver_url.clone(),
+        homeserver: args.matrix_homeserver_url.clone(),
         db_path: db_path.to_path_buf(),
         passphrase,
     };
