@@ -1,4 +1,4 @@
-use metrics::counter;
+use metrics::{counter, describe_counter};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use miette::{Context, IntoDiagnostic};
 use std::net::SocketAddr;
@@ -12,8 +12,12 @@ pub(super) fn init(address: SocketAddr) -> miette::Result<()> {
         .install()
         .into_diagnostic()
         .wrap_err("Failed to start prometheus metrics exporter")?;
-
     info!("Metrics server listening on {}", address);
+
+    describe_counter!(
+        HELP_DESK_REQUESTS_TOTAL,
+        "Total number of helpdesk requests, labeled by matrix_user, matrix_room, and result."
+    );
 
     Ok(())
 }
