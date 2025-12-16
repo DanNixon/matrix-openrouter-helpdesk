@@ -1971,6 +1971,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "handlebars",
+ "itertools 0.14.0",
  "matrix-sdk",
  "metrics",
  "metrics-exporter-prometheus",
