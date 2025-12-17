@@ -387,15 +387,7 @@ async fn on_room_message(
     let user_id = event.sender.to_string();
 
     // Call OpenRouter to get a response
-    match crate::openrouter::request(
-        &ctx.http_client,
-        &ctx.args.openrouter_api_key,
-        &ctx.args.model,
-        &ctx.args.system_prompt,
-        &question,
-    )
-    .await
-    {
+    match crate::openrouter::request(&ctx, &question).await {
         Ok(answer) => {
             // Render the reply template
             let rendered_reply = match ctx.render_reply(&answer) {

@@ -3,6 +3,8 @@ use miette::IntoDiagnostic;
 use serde::Deserialize;
 use tracing::info;
 
+use crate::context::Context;
+
 #[derive(Debug, Deserialize)]
 struct Response {
     output: Vec<Output>,
@@ -43,34 +45,18 @@ struct MessageContent {
     text: String,
 }
 
-pub(crate) async fn request(
-    http_client: &reqwest::Client,
-    api_key: &str,
-    model: &str,
-    system_prompt: &str,
-    prompt: &str,
-) -> miette::Result<String> {
-    let request = serde_json::json!({
-        "input": [
-            {
-                "type": "message",
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "type": "message",
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        "model": model,
-    });
-
+pub(crate) async fn request(ctx: &Context, question: &str) -> miette::Result<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(&ctx.render_request(question)?).into_diagnostic()?;
     info!("Request: {request:?}");
 
-    let response = http_client
+    let response = ctx
+        .http_client
         .post("https://openrouter.ai/api/v1/responses")
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header(
+            "Authorization",
+            format!("Bearer {}", ctx.args.openrouter_api_key),
+        )
         .header("Content-Type", "application/json")
         .json(&request)
         .send()

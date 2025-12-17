@@ -26,25 +26,17 @@ pub(crate) struct Cli {
     #[arg(env = "OPENROUTER_API_KEY", long)]
     pub openrouter_api_key: String,
 
-    /// OpenRouter model to use
-    #[arg(env = "OPENROUTER_MODEL", long, default_value = "openai/gpt-5-mini")]
-    pub model: String,
-
-    /// System prompt for configured model
-    #[arg(
-        env = "SYSTEM_PROMPT",
-        long,
-        default_value = "You are answering single questions from a user. Don't offer any follow up options."
-    )]
-    pub system_prompt: String,
-
     /// Endpoint for Prometheus metrics
     #[arg(env = "METRICS_ENDPOINT", long, default_value = "127.0.0.1:9090")]
     pub metrics_endpoint: SocketAddr,
 
+    /// Path to request template file
+    #[arg(env = "REQUEST_TEMPLATE_FILE", long)]
+    request_template_file: PathBuf,
+
     /// Path to reply template file
     #[arg(env = "REPLY_TEMPLATE_FILE", long)]
-    reply_template_file: Option<String>,
+    reply_template_file: Option<PathBuf>,
 }
 
 const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
@@ -52,13 +44,16 @@ const DEFAULT_REPLY_TEMPLATE: &str = "{{ response }}";
 #[derive(Clone)]
 pub(crate) struct Context {
     pub args: Cli,
-    pub reply_template: String,
+    request_template: String,
+    reply_template: String,
     pub http_client: reqwest::Client,
     handlebars: Handlebars<'static>,
 }
 
 impl Context {
     pub(crate) fn new(args: Cli) -> miette::Result<Self> {
+        let request_template = fs::read_to_string(&args.request_template_file).into_diagnostic()?;
+
         let reply_template = match &args.reply_template_file {
             Some(path) => fs::read_to_string(path).into_diagnostic()?,
             None => DEFAULT_REPLY_TEMPLATE.to_string(),
@@ -66,6 +61,7 @@ impl Context {
 
         Ok(Self {
             args,
+            request_template,
             reply_template,
             http_client: reqwest::Client::new(),
             handlebars: Handlebars::new(),
@@ -75,6 +71,16 @@ impl Context {
     pub(crate) fn from_cli() -> miette::Result<Self> {
         let args = Cli::parse();
         Self::new(args)
+    }
+
+    pub(crate) fn render_request(&self, question: &str) -> miette::Result<String> {
+        let data = serde_json::json!({
+            "question": question,
+        });
+
+        self.handlebars
+            .render_template(&self.request_template, &data)
+            .into_diagnostic()
     }
 
     pub(crate) fn render_reply(&self, response: &str) -> miette::Result<String> {
