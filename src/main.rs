@@ -24,7 +24,7 @@ use matrix_sdk::{
     Client, Error, LoopCtrl, Room, RoomState,
 };
 use miette::IntoDiagnostic;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, RngExt};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
