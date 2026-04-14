@@ -11,7 +11,7 @@ matrix-sdk = { version = "0.16.0", default-features = false, features = ["automa
 metrics = "0.24.3"
 metrics-exporter-prometheus = "0.18.1"
 miette = { version = "7.6.0", features = ["fancy"] }
-rand = "0.10.0"
+rand = "0.10.1"
 regex = "1.12.3"
 reqwest = { version = "0.12.28", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.228", features = ["derive"] }
