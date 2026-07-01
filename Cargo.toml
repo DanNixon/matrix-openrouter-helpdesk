@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.60", features = ["derive", "env"] }
 handlebars = "6.4.0"
-itertools = "0.14.0"
+itertools = "0.15.0"
 matrix-sdk = { version = "0.16.0", default-features = false, features = ["automatic-room-key-forwarding", "e2e-encryption", "rustls-tls", "bundled-sqlite", "markdown"] }
 metrics = "0.24.3"
 metrics-exporter-prometheus = "0.18.1"
